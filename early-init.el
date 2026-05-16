@@ -4,6 +4,7 @@
   (startup-redirect-eln-cache "var/eln-cache"))
 (setq max-specpdl-size 13000)
 (setq warning-suppress-log-types '((files missing-lexbind-cookie)))
+(setq native-comp-async-report-warnings-errors 'silent)
 
 (setq package-enable-at-startup nil)
 (setq load-prefer-newer t)

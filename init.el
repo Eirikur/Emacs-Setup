@@ -54,6 +54,11 @@
   :hook
   (python-ts-mode . eglot-ensure))
 
+;;; Mode-line
+(add-to-list 'load-path (expand-file-name "eh" user-emacs-directory))
+(require 'eh-mode-line)
+(spaceline-all-the-icons-theme)
+
 ;;; Python shell: point at the venv interpreter when in a uv project
 (defun my/python-ts-mode-hook ()
   (when-let ((venv (my/uv-venv)))
