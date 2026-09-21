@@ -40,22 +40,7 @@
   :bind
   (("C-c C-f" . show-font-select-preview)
    ("C-c f" . show-font-tabulated)))
-;;; Frames
-(setq-default
- default-frame-alist
- '(
-   (font . "Fira Code 32") ;; "Fira Code Nerd Font Mono-32");; use show-font to get name
-   (width  . 85)
-   (height . 50)
-   (background-color . "#000000")       ; Default background color
-   (foreground-color . "#FAFAFA")       ; Default foreground color
-   (vertical-scroll-bars . nil)
-   (horizontal-scroll-bars . nil)       ; No horizontal scroll-bars
-   (left-fringe . 5)                    ; Thin left fringe
-   (right-divider-width . 3)            ; Thin vertical window divider
-   (right-fringe . 5)                   ; Thin right fringe
-   (tool-bar-lines . 0)                 ; No tool bar
-   ))
+;;; Frames: parameters live in early-init.el (`default-frame-alist').
 
  ;;; Offload the custom-set-variables to a separate file
  ;;; This keeps your init.el neater and you have the option
@@ -420,6 +405,5 @@
 
 ;; Hack. Emacs doesn't get input focus automatically.
 (select-frame-set-input-focus (selected-frame))
-;; (set-frame-font "Fira Code 24" nil t) ;; Now in earlyinit.el
 
 ;; init.el ends

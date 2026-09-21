@@ -24,15 +24,22 @@
 ;; Add the directory to the load-path, preferring to the front and avoiding duplicates.
 (add-to-list 'load-path rgr/elisp-dir)
 
-;;; First frame: prevent flash with fixed font (dynamic resize happens in init.el)
-(add-to-list 'default-frame-alist '(font . "Fira Code-28"))
-(add-to-list 'default-frame-alist '(tool-bar-lines . 0))
-(add-to-list 'default-frame-alist '(vertical-scroll-bars . nil))
-;;; Prevent first frame flash of white background.
-(add-to-list 'default-frame-alist '(alpha-background . 0))
-(add-hook
- 'after-init-hook
- (lambda ()
-   (add-to-list 'default-frame-alist '(alpha-background . nil))
-   (set-frame-parameter nil 'alpha-background nil)))
+;;; Frame parameters -- the ONE place they are set.  The first GUI frame is
+;;; created before init.el runs, so anything set later only patches it up after
+;;; the fact (resize jump, color flash).  Don't set `default-frame-alist' in
+;;; init.el: that would replace this list for every later frame.
+;;; background-color matches waher's `default' face; change it with the theme.
+;;; foreground-color is left out on purpose: a frame parameter overrides the
+;;; theme's text color, so the theme is left to set it.
+(setq default-frame-alist
+      '((font . "Fira Code 32")           ; use show-font to get the name
+        (width . 85)
+        (height . 50)
+        (background-color . "#000000")
+        (vertical-scroll-bars . nil)
+        (horizontal-scroll-bars . nil)
+        (tool-bar-lines . 0)
+        (left-fringe . 5)
+        (right-fringe . 5)
+        (right-divider-width . 3)))
 
