@@ -126,6 +126,27 @@
 (global-set-key [(super f)] 'make-frame)
 (global-set-key (kbd "C-c e") 'eval-buffer) ;;'eh/elisp-eval)
 
+;;; One window at a time, GUI-style.
+(defun eh/solo-window (&rest _)
+  "Make the selected window the only window in its frame."
+  (delete-other-windows))
+
+(defun eh/click-solo (event)
+  "Like `mouse-set-point', then make the clicked window the only window.
+Clicks in the minibuffer are left alone."
+  (interactive "e")
+  (mouse-set-point event)
+  (unless (window-minibuffer-p (posn-window (event-start event)))
+    (delete-other-windows)))
+(global-set-key [mouse-1] #'eh/click-solo)
+
+;; Picking a file from the recentf list leaves just that file on screen.
+;; The action is the click/RET path; the other is the dialog's digit keys
+;; (and `recentf-open-most-recent-file' itself).
+(with-eval-after-load 'recentf
+  (dolist (fn '(recentf-open-files-action recentf-open-most-recent-file))
+    (advice-add fn :after #'eh/solo-window)))
+
 ;;; Paths
   (dolist (p '("local" "eh" "themes"))
     (add-to-list 'load-path
