@@ -1,5 +1,5 @@
 ;;; early-init.el --- early bird  -*- no-byte-compile: t; lexical-binding: t; -*-
-;; Maintained in emacs-config.org
+
 (when (boundp 'native-comp-eln-load-path)
   (startup-redirect-eln-cache "var/eln-cache"))
 (setq max-specpdl-size 13000)
@@ -28,3 +28,11 @@
 (add-to-list 'default-frame-alist '(font . "Fira Code-28"))
 (add-to-list 'default-frame-alist '(tool-bar-lines . 0))
 (add-to-list 'default-frame-alist '(vertical-scroll-bars . nil))
+;;; Prevent first frame flash of white background.
+(add-to-list 'default-frame-alist '(alpha-background . 0))
+(add-hook
+ 'after-init-hook
+ (lambda ()
+   (add-to-list 'default-frame-alist '(alpha-background . nil))
+   (set-frame-parameter nil 'alpha-background nil)))
+
