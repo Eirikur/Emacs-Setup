@@ -405,6 +405,166 @@ Clicks in the minibuffer are left alone."
 
 (save-place-mode)
 
+;;; Restored 2026-09-25 from the pre-trim init.el (Archived/top-level/init.el.backup).
+(delete-selection-mode t)
+(global-auto-revert-mode t)
+
+(setq frame-title-format
+      (list
+       "ξmacs:  "
+       '((:eval (if (buffer-file-name)
+                    (abbreviate-file-name (buffer-file-name))
+                  "%b")))
+       "  on  "
+       (system-name)))
+
+(setopt dictionary-search-interface   'help
+        dictionary-default-strategy  "prefix"
+        dictionary-default-dictionary "gcide"
+        dictionary-server             "dict.org")
+(keymap-global-set "M-#" #'dictionary-search)
+(dictionary-tooltip-mode t)
+
+(use-package olivetti)
+(defun eh/olivetti ()
+  "Things I like with olivetti-mode."
+  (interactive)
+  (require 'olivetti)
+  (fringe-mode-initialize)
+  (delete-other-windows)
+  (olivetti-mode)
+  (toggle-frame-fullscreen))
+;; C-c d is bound to `eh/olivetti' with the other global keys near the top.
+
+;;; Landing screen for Emacs/emacsclient with no file argument.
+;; Goal: when entering Emacs without asking for a specific file, show the most
+;; recent edited file in the main window, with the `recentf' chooser below it.
+;; This deliberately does not run when Emacs/emacsclient is visiting a file.
+(require 'seq)
+(defvar eh/startup-had-file-args
+  (seq-some (lambda (arg)
+              (and (stringp arg)
+                   (not (string-prefix-p "-" arg))))
+            command-line-args-left)
+  "Non-nil when this Emacs startup was given a file-like command-line arg.")
+
+(defcustom eh/landing-recentf-window-height 14
+  "Height of the lower recentf chooser window in `eh/landing-screen'."
+  :type 'integer
+  :group 'convenience)
+
+(defun eh/recentf-existing-file-list ()
+  "Return `recentf-list' entries that are readable, non-directory files."
+  (require 'recentf)
+  (unless recentf-mode
+    (recentf-mode 1))
+  (seq-filter (lambda (file)
+                (and (stringp file)
+                     (file-readable-p file)
+                     (not (file-directory-p file))))
+              recentf-list))
+
+(defun eh/recentf-most-recent-file ()
+  "Return the most recent readable non-directory file from `recentf-list'."
+  (car (eh/recentf-existing-file-list)))
+
+(defun eh/landing-screen (&optional force)
+  "Show the most recent file above a `recentf' chooser.
+
+With prefix argument FORCE, show the landing screen even when the current
+buffer is already visiting a file.  Without FORCE, do nothing in file-visiting
+buffers, so file arguments to Emacs or emacsclient are not hijacked."
+  (interactive "P")
+  (require 'recentf)
+  (unless recentf-mode
+    (recentf-mode 1))
+  (when (or force (not (buffer-file-name (window-buffer (selected-window)))))
+    (let ((file (eh/recentf-most-recent-file))
+          (recentf-height (max 4 eh/landing-recentf-window-height)))
+      (delete-other-windows)
+      (when file
+        (find-file file))
+      (let ((main-window (selected-window)))
+        (when (and recentf-list
+                   (> (window-total-height main-window)
+                      (+ recentf-height window-min-height 2)))
+          (select-window (split-window main-window (- recentf-height) 'below))
+          (condition-case err
+              (recentf-open-files)
+            (error
+             (switch-to-buffer (get-buffer-create "*Messages*"))
+             (message "Could not open recentf chooser: %S" err)))
+          (select-window main-window))))))
+
+(defun eh/landing-screen-maybe ()
+  "Show `eh/landing-screen' on startup if no file was requested."
+  (unless eh/startup-had-file-args
+    (eh/landing-screen)))
+
+(defun eh/landing-screen-maybe-for-client-frame ()
+  "Show `eh/landing-screen' for an emacsclient frame with no file buffer.
+Run after a zero-second timer so file-visiting clients get their file first."
+  (let ((frame (selected-frame)))
+    (run-at-time
+     0 nil
+     (lambda (frame)
+       (when (frame-live-p frame)
+         (with-selected-frame frame
+           (eh/landing-screen))))
+     frame)))
+
+(add-hook 'emacs-startup-hook #'eh/landing-screen-maybe)
+
+(with-eval-after-load 'server
+  (add-hook 'server-after-make-frame-hook
+            #'eh/landing-screen-maybe-for-client-frame))
+
+;;; Emacs server for emacsclient.
+;; Start a server in normal interactive Emacs so `emacsclient' can reuse this
+;; session.  Do not do this in batch jobs/tests.  The status message at the end
+;; uses `eh/server-id-string' rather than merely checking whether
+;; `server-socket-dir' is bound; that variable can be misleading unless the
+;; server library has been loaded and a server was actually started.
+(defun eh/current-emacs-server-running-p ()
+  "Return non-nil if this Emacs process has a live server process."
+  (and (boundp 'server-process)
+       (processp server-process)
+       (process-live-p server-process)))
+
+(defun eh/server-start-maybe ()
+  "Start the Emacs server unless one is already running."
+  (require 'server)
+  (condition-case err
+      (cond
+       ((eh/current-emacs-server-running-p)
+        t)
+       ((server-running-p)
+        ;; Another Emacs already owns the default server socket/name.
+        ;; Leave it alone rather than stealing or deleting sockets.
+        (message "Emacs server already running elsewhere: %s" server-name)
+        nil)
+       (t
+        (server-start)
+        (eh/current-emacs-server-running-p)))
+    (error
+     (message "Could not start Emacs server: %s" (error-message-string err))
+     nil)))
+
+(defun eh/server-id-string ()
+  "Return a human-readable description of the current Emacs server state."
+  (cond
+   ((not (featurep 'server))
+    "No server.")
+   ((eh/current-emacs-server-running-p)
+    (format "%s pid %s" server-name (emacs-pid)))
+   ((server-running-p)
+    (format "%s already running elsewhere" server-name))
+   (t
+    "No server.")))
+
+(unless noninteractive
+  (eh/server-start-maybe))
+
 ;; Back up every file on save.  ~/scripts/emacs-push.sh keeps a timestamped
 ;; local copy in ~/.emacs.d/Emacs_Backups and pushes to the other machines.
 (defun eh-backup-file ()
@@ -428,9 +588,11 @@ Clicks in the minibuffer are left alone."
 
 
 
-(if (boundp 'server-socket-dir)
-    (setq server-id (propertize "Server" 'face '(:foreground "blue")))
-  (setq server-id  (propertize "No server." 'face  '(:foreground "red"))))
+(setq server-id
+      (let ((id (eh/server-id-string)))
+        (propertize id 'face `(:foreground ,(if (string-prefix-p "No server" id)
+                                                "red"
+                                              "blue")))))
 
 
 
