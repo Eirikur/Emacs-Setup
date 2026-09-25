@@ -107,6 +107,23 @@
 ;; (require 'EH-spaceline-all-the-icons-separators)
 (spaceline-all-the-icons-theme)
 
+;; Toggle the scroll bar, tool bar and menu bar.
+(defvar trimmings-active)
+(setq trimmings-active nil)
+(defun trimmings ()
+  "Display toolbar, menubar and scrollbar."
+  (interactive)
+  (if trimmings-active
+      (setq trimmings-active -1)
+    (setq trimmings-active t)
+    )
+  ;;  (message trimmings-active)
+  (scroll-bar-mode trimmings-active)
+  (tool-bar-mode trimmings-active)
+  (menu-bar-mode trimmings-active)
+  )
+(bind-key "C-c t" #'trimmings)
+
 ;; Things needed but can't run every startup.
 (defun eh/first-run ()
   (all-the-icons-install-fonts t)
@@ -259,6 +276,29 @@ Clicks in the minibuffer are left alone."
 (rainbow-delimiters-mode)
 
 ;;; Python
+;; Put a breakpoint() line above the current one / remove all of them.
+;; Bound to M-p and M-P in python-mode below.
+(defun eh/pdb ()
+  (interactive)
+  (beginning-of-line)
+  (open-line 1)
+  (indent-for-tab-command)
+  (insert "breakpoint()")
+  (beginning-of-line)
+  (indent-for-tab-command)
+  (save-buffer)
+  ;;                   )
+  )
+
+(defun eh/nopdb ()
+  (interactive)
+  (save-excursion
+    (beginning-of-buffer)
+    (flush-lines "breakpoint()")
+    )
+  (save-buffer)
+  )
+
 (defun eh-python-hook ()
   (interactive)
   (setq-default electric-indent-inhibit t)
@@ -278,7 +318,7 @@ Clicks in the minibuffer are left alone."
               ("C-." . python-indent-shift-right)
               ("<kp-4>" . python-indent-shift-left)
               ("<kp-6>" . python-indent-shift-right)
-              ("M-p" . eh/pdb)          ; eh/pdb and eh/nopdb do not exist (yet)
+              ("M-p" . eh/pdb)
               ("M-P" . eh/nopdb)
               ("M-n" . display-line-numbers-mode)))
 
@@ -403,7 +443,6 @@ Clicks in the minibuffer are left alone."
 (bind-key "` b" #'cmd2)
 (bind-key "` c" #'cmd3)
 (bind-key "<kp-7>" #'kp-7-target)
-(bind-key "C-c t" #'trimmings)
 (bind-key "C-c m" #'moccur)
 
 ;;;; 11. Startup
