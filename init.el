@@ -65,14 +65,10 @@
    ("C-c f" . show-font-tabulated)))
 ;;; Frames: parameters live in early-init.el (`default-frame-alist').
 
- ;;; Offload the custom-set-variables to a separate file
- ;;; This keeps your init.el neater and you have the option
- ;;; to gitignore your custom.el if you see fit.
- (setq custom-file "~/.emacs.d/custom.el")
- (unless (file-exists-p custom-file)
-   (write-region "" nil custom-file))
- ;;; Load custom file. Don't hide errors. Hide success message
-(load custom-file nil t)
+;;; Customize is deliberately neutered: its file is a throwaway that is never
+;;; loaded, so nothing it saves (including package.el's package-selected-packages)
+;;; can come back later as a surprise.  Settings live in this file only.
+(setq custom-file (make-temp-file "emacs-custom-" nil ".el"))
 
 (defun eh/elisp-eval ()
   (interactive)
