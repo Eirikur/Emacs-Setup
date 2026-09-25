@@ -6,3 +6,10 @@
 !early-init.el
 !LICENSE
 !README.md
+!eh/
+eh/*
+!eh/eh-cursor.el
+!eh/eh-mode-line.el
+!local/
+local/*
+!local/cursor-chg.el
