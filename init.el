@@ -439,9 +439,6 @@ Clicks in the minibuffer are left alone."
 (bind-key "C-c i" #'indent-region)
 (bind-key "s-f" #'make-frame)
 
-;; Bound to a command that does not exist (yet): it errors when pressed.
-(bind-key "<kp-7>" #'kp-7-target)
-
 ;;;; 11. Startup
 ;; Landing screen, Emacs server, then the load report.
 
