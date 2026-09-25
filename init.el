@@ -63,6 +63,10 @@
  use-package-verbose t)
 (eval-when-compile
   (require 'use-package))
+;; All keys are set with `bind-key' (what `use-package' :bind uses), always in
+;; `kbd' syntax ("C-c d", "<home>", "s-f").  `M-x describe-personal-keybindings'
+;; then lists every key set here and shows anything that overrides another.
+(require 'bind-key)
 
 (message "Package system up.")
 
@@ -202,7 +206,7 @@ Clicks in the minibuffer are left alone."
   (mouse-set-point event)
   (unless (window-minibuffer-p (posn-window (event-start event)))
     (delete-other-windows)))
-(global-set-key [mouse-1] #'eh/click-solo)
+(bind-key "<mouse-1>" #'eh/click-solo)
 
 ;; Picking a file from the recentf list leaves just that file on screen.
 ;; The action is the click/RET path; the other is the dialog's digit keys
@@ -246,10 +250,11 @@ Clicks in the minibuffer are left alone."
   (rainbow-mode t)
   ;; Show the current function name in the mode line
   (which-function-mode)
-  (local-set-key "\C-ci" 'indent-region)
-  (local-set-key "\C-cc" 'comment-line)
   )
 (add-hook 'prog-mode-hook 'my-prog-mode-hook)
+(bind-keys :map prog-mode-map
+           ("C-c i" . indent-region)
+           ("C-c c" . comment-line))
 ;; *scratch* already exists, so the hook above never ran for it.
 (rainbow-delimiters-mode)
 
@@ -262,18 +267,20 @@ Clicks in the minibuffer are left alone."
   (setq indent-tabs-mode nil)
   (setq tab-width 4)
   (rainbow-delimiters-mode-enable)
-  ;; (local-set-key (kbd "C-c C-c") 'eh/send-to-python)
-  (local-set-key (kbd "C-,") 'python-indent-shift-left)
-  (local-set-key (kbd "C-.") 'python-indent-shift-right)
-  (local-set-key (kbd "<kp-4>") 'python-indent-shift-left)
-  (local-set-key (kbd "<kp-6>") 'python-indent-shift-right)
-
-  (local-set-key (kbd "M-p") 'eh/pdb)
-  (local-set-key (kbd "M-P") 'eh/nopdb)
-  (local-set-key (kbd "M-n") 'display-line-numbers-mode)
   (add-to-list 'write-file-functions 'delete-trailing-whitespace)
   )
 (add-hook 'python-mode-hook 'eh-python-hook)
+(use-package python
+  :ensure nil                           ; built in
+  :bind (:map python-mode-map
+              ;; ("C-c C-c" . eh/send-to-python)
+              ("C-," . python-indent-shift-left)
+              ("C-." . python-indent-shift-right)
+              ("<kp-4>" . python-indent-shift-left)
+              ("<kp-6>" . python-indent-shift-right)
+              ("M-p" . eh/pdb)          ; eh/pdb and eh/nopdb do not exist (yet)
+              ("M-P" . eh/nopdb)
+              ("M-n" . display-line-numbers-mode)))
 
 ;;;; 8. Writing
 
@@ -286,7 +293,7 @@ Clicks in the minibuffer are left alone."
   (delete-other-windows)
   (olivetti-mode)
   (toggle-frame-fullscreen))
-(global-set-key "\C-cd" 'eh/olivetti)
+(bind-key "C-c d" #'eh/olivetti)
 
 (defun endless/fill-or-unfill ()
   "Like `fill-paragraph', but unfill if used twice."
@@ -297,14 +304,13 @@ Clicks in the minibuffer are left alone."
                     (point-max))
            fill-column)))
     (call-interactively #'fill-paragraph)))
-(global-set-key [remap fill-paragraph]
-                #'endless/fill-or-unfill)
+(bind-key [remap fill-paragraph] #'endless/fill-or-unfill)
 
 (setopt dictionary-search-interface   'help
         dictionary-default-strategy  "prefix"
         dictionary-default-dictionary "gcide"
         dictionary-server             "dict.org")
-(keymap-global-set "M-#" #'dictionary-search)
+(bind-key "M-#" #'dictionary-search)
 (dictionary-tooltip-mode t)
 
 ;;;; 9. Small tools
@@ -316,7 +322,7 @@ Clicks in the minibuffer are left alone."
     (eval-buffer)
     )
   )
-(global-set-key (kbd "C-c e") 'eh/elisp-eval)
+(bind-key "C-c e" #'eh/elisp-eval)
 
 (defun eh/what-face (pos)
   "Show the name of face under point."
@@ -324,7 +330,7 @@ Clicks in the minibuffer are left alone."
   (let ((face (or (get-char-property (point) 'read-face-name)
                   (get-char-property (point) 'face))))
     (if face (message "Face: %s" face) (message "No face at %d" pos))))
-(global-set-key (kbd "C-c w") 'eh/what-face)
+(bind-key "C-c w" #'eh/what-face)
 
 (use-package show-font
   :ensure t
@@ -336,8 +342,7 @@ Clicks in the minibuffer are left alone."
   :init
   (setq fci-rule-width 1)
   (setq fci-rule-color "darkgrey")
-  (global-set-key "\C-cF" 'fci-mode)
-  )
+  :bind ("C-c F" . fci-mode))
 
 (use-package sxhkdrc-mode)
 (use-package vundo)
@@ -347,57 +352,59 @@ Clicks in the minibuffer are left alone."
 ;; commands (sections 6, 8 and 9).
 
 ;; Mar. 21 2026
-(global-unset-key (kbd "C-z"))
-(global-unset-key (kbd "M-z"))
+(unbind-key "C-z")
+(unbind-key "M-z")
 ;; Super-i bound to insert i-accute
-(global-set-key (kbd "s-i") (lambda () (interactive) (insert ?\í)))
+(bind-key "s-i" (lambda () (interactive) (insert ?\í)))
 
 ;; Navigation
-(global-set-key [home] 'beginning-of-buffer)
-(global-set-key [end] 'end-of-buffer)
-(global-set-key [select] 'end-of-buffer)
-(global-set-key [C-tab] 'mode-line-other-buffer) ;; Finally 6Nov24
-(global-set-key "\C-t" 'hs-toggle-hiding)
-(global-set-key "\C-T" 'hs-hide-all)
+(bind-key "<home>" #'beginning-of-buffer)
+(bind-key "<end>" #'end-of-buffer)
+(bind-key "<select>" #'end-of-buffer)
+(bind-key "C-<tab>" #'mode-line-other-buffer) ;; Finally 6Nov24
+;; Hideshow.  In the old string syntax "\C-T" was the very same key as "\C-t",
+;; so hide-all silently replaced toggle-hiding.  Now they are two keys.
+(bind-key "C-t" #'hs-toggle-hiding)
+(bind-key "C-S-t" #'hs-hide-all)
 
 ;; Open my init / profile
-(global-set-key [insert] (lambda () (interactive)
-			   (find-file "~/.emacs.d/init.el")
-			   (delete-other-windows)))
-(global-set-key [S-insert] (lambda () (interactive)
-			   (find-file "~/.profile")
-			   (delete-other-windows)))
+(bind-key "<insert>" (lambda () (interactive)
+                       (find-file "~/.emacs.d/init.el")
+                       (delete-other-windows)))
+(bind-key "S-<insert>" (lambda () (interactive)
+                         (find-file "~/.profile")
+                         (delete-other-windows)))
 
 ;; Keypad
-(global-set-key [kp-end] 'delete-other-windows)
-(global-set-key [kp-enter] 'execute-extended-command)
-(global-set-key [kp-insert] 'delete-window)
-(global-set-key (kbd "<kp-1>") 'delete-other-windows)
-(global-set-key (kbd "<kp-0>") 'delete-window)
+(bind-key "<kp-end>" #'delete-other-windows)
+(bind-key "<kp-enter>" #'execute-extended-command)
+(bind-key "<kp-insert>" #'delete-window)
+(bind-key "<kp-1>" #'delete-other-windows)
+(bind-key "<kp-0>" #'delete-window)
 
 ;; Zoom in and out.
-(global-set-key (kbd "C-=")      'text-scale-increase)
-(global-set-key (kbd "C--")      'text-scale-decrease)
+(bind-key "C-=" #'text-scale-increase)
+(bind-key "C--" #'text-scale-decrease)
 
 ;; C-c prefix
-(global-set-key (kbd "C-c o") 'occur)
-(global-set-key (kbd "C-c b") 'list-bookmarks)
-;; (global-set-key "\C-cs" 'sudo-edit)
-(global-set-key "\C-c\C-k" 'kill-emacs)
-(global-set-key (kbd "C-c r") 'recentf-open-files)
-(global-set-key (kbd "C-c R") 'recentf-open-most-recent-file)
-(global-set-key "\C-ci" 'indent-region)
-(global-set-key [(super f)] 'make-frame)
+(bind-key "C-c o" #'occur)
+(bind-key "C-c b" #'list-bookmarks)
+;; (bind-key "C-c s" #'sudo-edit)
+(bind-key "C-c C-k" #'kill-emacs)
+(bind-key "C-c r" #'recentf-open-files)
+(bind-key "C-c R" #'recentf-open-most-recent-file)
+(bind-key "C-c i" #'indent-region)
+(bind-key "s-f" #'make-frame)
 
 ;; Bound to commands that do not exist (yet): they error when pressed.
 ;; Xah's no-keymap keymap. Try local-set key.
-(global-set-key (kbd "`") nil)
-(global-set-key (kbd "` a") 'cmd1)
-(global-set-key (kbd "` b") 'cmd2)
-(global-set-key (kbd "` c") 'cmd3)
-(global-set-key [kp-7] 'kp-7-target)
-(global-set-key (kbd "C-c t") 'trimmings)
-(global-set-key (kbd "C-c m") 'moccur)
+(unbind-key "`")
+(bind-key "` a" #'cmd1)
+(bind-key "` b" #'cmd2)
+(bind-key "` c" #'cmd3)
+(bind-key "<kp-7>" #'kp-7-target)
+(bind-key "C-c t" #'trimmings)
+(bind-key "C-c m" #'moccur)
 
 ;;;; 11. Startup
 ;; Landing screen, Emacs server, then the load report.
