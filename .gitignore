@@ -4,3 +4,5 @@
 !.gitignore
 !init.el
 !early-init.el
+!LICENSE
+!README.md
