@@ -1,10 +1,49 @@
 ;;; init.el --- -*- lexical-binding: t; -*-
+
+;; Sections (search for ";;;; " to jump between them):
+;;    1. Startup basics      clock, Customize, package archives, use-package
+;;    2. Load path
+;;    3. Appearance          theme, title, mode line, cursor
+;;    4. Editing defaults
+;;    5. Files and backups   recentf, save-place, per-save backup, shebang chmod
+;;    6. Windows and mouse   one window at a time
+;;    7. Programming         prog-mode and Python
+;;    8. Writing             olivetti, fill/unfill, dictionary
+;;    9. Small tools
+;;   10. Keys                keys for built-in commands
+;;   11. Startup             landing screen, server, load report
+;;
+;; Convention: a key for one of my own commands, or for a package feature, is
+;; bound right next to it.  Keys for built-in commands live together in
+;; section 10, so the whole keymap can be read (and conflicts spotted) in one
+;; place.
+;;
+;; Ordering that matters:
+;;   - package archives before `package-initialize', which comes before any
+;;     use-package or theme;
+;;   - the load path (section 2) before any `load-library';
+;;   - everything `my-prog-mode-hook' calls is installed before the hook is
+;;     added (installing a package runs `prog-mode-hook' in its source buffers);
+;;   - the server functions before the load report at the very end.
+;;
+;; early-init.el owns: frame parameters, `package-enable-at-startup',
+;; `load-prefer-newer', native-comp warnings and the eln cache location.
+
+;;;; 1. Startup basics
+
+(setq emacs-load-start-time (current-time)) ;; Should be first thing in file.
+
+;; Customize is deliberately neutered: its file is a throwaway that is never
+;; loaded, so nothing it saves (including package.el's package-selected-packages)
+;; can come back later as a surprise.  Settings live in this file only.
+(setq custom-file (make-temp-file "emacs-custom-" nil ".el"))
+
 ;; early-init.el sets `package-enable-at-startup' to nil, so packages in elpa/
 ;; are only on `load-path' / `custom-theme-load-path' after this call.  It must
 ;; come before anything that requires a package or loads a theme.
 (setq package-archives
       '(("melpa"        . "https://melpa.org/packages/")
-	("melpa-stable" . "https://stable.melpa.org/packages/")
+        ("melpa-stable" . "https://stable.melpa.org/packages/")
         ("gnu"          . "https://elpa.gnu.org/packages/")
         ))
 
@@ -25,7 +64,21 @@
 (eval-when-compile
   (require 'use-package))
 
+(message "Package system up.")
+
+;;;; 2. Load path
+
+(dolist (p '("local" "eh" "themes"))
+  (add-to-list 'load-path
+               (expand-file-name
+                (locate-user-emacs-file p))))
+
+;;;; 3. Appearance
+;; Frame parameters (font, size, colors) live in early-init.el
+;; (`default-frame-alist'), not here.
+
 (setq no-confirm-load-theme t)
+(setq custom-safe-themes t)
 (use-package waher-theme
   :demand t
   :config (load-theme 'waher :no-confirm))
@@ -33,119 +86,111 @@
 (setq inhibit-splash-screen t)
 (fset 'display-startup-echo-area-message 'ignore)
 
-;; Xah's no-keymap keymap. Try local-set key.
-(global-set-key (kbd "`") nil)
-(global-set-key (kbd "` a") 'cmd1)
-(global-set-key (kbd "` b") 'cmd2)
-(global-set-key (kbd "` c") 'cmd3)
+(setq frame-title-format
+      (list
+       "ξmacs:  "
+       '((:eval (if (buffer-file-name)
+                    (abbreviate-file-name (buffer-file-name))
+                  "%b")))
+       "  on  "
+       (system-name)))
 
+;; Mode line.  eh-mode-line installs spaceline and friends, so it must load
+;; before `spaceline-config' is required.
+(setq spaceline-all-the-icons-slim-render t)
+(load-library "eh-mode-line")
+(require 'spaceline-config)
+;; (require 'EH-spaceline-all-the-icons-separators)
+(spaceline-all-the-icons-theme)
 
+;; Things needed but can't run every startup.
+(defun eh/first-run ()
+  (all-the-icons-install-fonts t)
+  )
 
+;; Cursor: color, shape, blink and beacon.
+(load-library "eh-cursor")
 
+;;;; 4. Editing defaults
 
+(defconst query-replace-highlight t)    ; Highlight during query
+(defconst search-highlight t)           ; Hilight incremental search
+(setq lazy-highlight-initial-delay 2)
+(setq cursor-in-nonselected-windows t)
+(setq scroll-step 1)                    ; Don't make big jumps
+(defalias 'yes-or-no-p 'y-or-n-p )      ; Don't want to type y-e-s
+(setq-default
+ ;; we usually want a final newline...
+ require-final-newline 't
+ ;; require-final-newline nil
+ ;; No tabs in my programs!
+ ;; indent-tabs-mode nil
+ ;; I don't like emacs destroying my window setup
+ even-window-heights nil
+ ;; Same here
+ ;; resize-mini-windows t
+ max-mini-window-height 10
+ ;; No am/pm here
+ display-time-24hr-format t
+ ;; A tab is 8 spaces is 8 spaces is 8 spaces
+ default-tab-width 4
+ ;; case insensitivity for the masses!
+ case-fold-search t
+ read-file-name-completion-ignore-case t
+ completion-ignore-case t
+ ;; Looking at wrapped lines causes eye/brain-strain
+ truncate-lines t
+ what-cursor-show-names t
+ )
 
+(put 'upcase-region 'disabled nil)
+(put 'downcase-region 'disabled nil)
+(put 'narrow-to-region 'disabled nil)
+(put 'dired-find-alternate-file 'disabled nil)
 
+(delete-selection-mode t)
 
+;;;; 5. Files and backups
 
-;; Powerline issues.
-(setq native-comp-async-report-warnings-errors 'silent)
+(use-package recentf)
+(recentf-mode t)
+(save-place-mode)
+(global-auto-revert-mode t)
 
+;; Save everything when Emacs loses focus.
+(add-function :after after-focus-change-function
+              (lambda () (unless (frame-focus-state) (save-some-buffers t))))
 
-
-;; (setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3")
-(setq emacs-load-start-time (current-time)) ;; Should be first thing in file.
-
-(setq load-prefer-newer t)
-(setq custom-safe-themes t)
-(setq no-confirm-load-theme t)
-(use-package show-font
-  :ensure t
-  :bind
-  (("C-c C-f" . show-font-select-preview)
-   ("C-c f" . show-font-tabulated)))
-;;; Frames: parameters live in early-init.el (`default-frame-alist').
-
-;;; Customize is deliberately neutered: its file is a throwaway that is never
-;;; loaded, so nothing it saves (including package.el's package-selected-packages)
-;;; can come back later as a surprise.  Settings live in this file only.
-(setq custom-file (make-temp-file "emacs-custom-" nil ".el"))
-
-(defun eh/elisp-eval ()
+;; Back up every file on save.  ~/scripts/emacs-push.sh keeps a timestamped
+;; local copy in ~/.emacs.d/Emacs_Backups and pushes to the other machines.
+(defun eh-backup-file ()
+  "Execute a shell script to backup the just-saved file."
   (interactive)
-  (if (region-active-p)
-      (eval-region (region-beginning) (region-end))
-    (eval-buffer)
-    )
-  )
-(global-set-key (kbd "C-c e") 'eh/elisp-eval)
+  (message "%s" (shell-command-to-string (concat "~/scripts/emacs-push.sh "
+						 buffer-file-name)))
 
-(defun eh/what-face (pos)
-  "Show the name of face under point."
-  (interactive "d")
-  (let ((face (or (get-char-property (point) 'read-face-name)
-                  (get-char-property (point) 'face))))
-    (if face (message "Face: %s" face) (message "No face at %d" pos))))
-(global-set-key (kbd "C-c w") 'eh/what-face)
+)
+(add-hook 'after-save-hook 'eh-backup-file)
 
+;; Make sure to set files that begin with shebang executable.
+;; shebang library didn't work, but this code from hlu does
+(defun hlu-make-script-executable ()
+  "If file starts with a shebang, make `buffer-file-name' executable"
+  (save-excursion
+    (save-restriction
+      (widen)
+      (goto-char (point-min))
+      (when (and (looking-at "^#!")
+                 (not (file-executable-p buffer-file-name)))
+        (set-file-modes buffer-file-name
+                        (logior (file-modes buffer-file-name) #o100))
+        ;; (message (concat "Made executable." buffer-file-name))))))
+        (message (concat "Made executable."))))))
+(add-hook 'after-save-hook 'hlu-make-script-executable)
 
-(use-package fill-column-indicator
-  :init
-  (setq fci-rule-width 1)
-  (setq fci-rule-color "darkgrey")
-  (global-set-key "\C-cF" 'fci-mode)
-  )
+;;;; 6. Windows and mouse
+;; One window at a time, GUI-style.
 
-;;; Keys
-;; Mar. 21 2026
-(global-unset-key (kbd "C-z"))
-(global-unset-key (kbd "M-z"))
-;; Super-i bound to insert i-accute
-(global-set-key (kbd "s-i") (lambda () (interactive) (insert ?\í)))
-
-;; Top-level key bindings
-(global-set-key [home] 'beginning-of-buffer)
-(global-set-key [end] 'end-of-buffer)
-(global-set-key [select] 'end-of-buffer)
-(global-set-key [insert] (lambda () (interactive)
-			   (find-file "~/.emacs.d/init.el")
-			   (delete-other-windows)))
-(global-set-key [S-insert] (lambda () (interactive)
-			   (find-file "~/.profile")
-			   (delete-other-windows)))
-(global-set-key "\C-cd" 'eh/olivetti)
-
-(global-set-key [kp-end] 'delete-other-windows)
-(global-set-key [kp-enter] 'execute-extended-command)
-(global-set-key [kp-insert] 'delete-window)
-
-(global-set-key [kp-7] 'kp-7-target)
-
-
-
-
-;; (global-set-key (kbdB "C-c b") 'list-bookmarks)
-(global-set-key (kbd "C-c t") 'trimmings)
-(global-set-key (kbd "C-c o") 'occur)
-(global-set-key (kbd "C-c b") 'list-bookmarks)
-;; (global-set-key "\C-cs" 'sudo-edit)
-(global-set-key "\C-c\C-k" 'kill-emacs)
-(global-set-key "\C-co" 'occur)
-(global-set-key (kbd "C-c m") 'moccur)
-(global-set-key "\C-t" 'hs-toggle-hiding)
-(global-set-key "\C-T" 'hs-hide-all)
-(global-set-key (kbd "C-c r") 'recentf-open-files)
-(global-set-key (kbd "C-c R") 'recentf-open-most-recent-file)
-(global-set-key (kbd "<kp-1>") 'delete-other-windows)
-(global-set-key (kbd "<kp-0>") 'delete-window)
-;; Zoom in and out.
-(global-set-key (kbd "C-=")      'text-scale-increase)
-(global-set-key (kbd "C--")      'text-scale-decrease)
-(global-set-key "\C-ci" 'indent-region)
-(global-set-key [C-tab] 'mode-line-other-buffer) ;; Finally 6Nov24
-(global-set-key [(super f)] 'make-frame)
-(global-set-key (kbd "C-c e") 'eval-buffer) ;;'eh/elisp-eval)
-
-;;; One window at a time, GUI-style.
 (defun eh/solo-window (&rest _)
   "Make the selected window the only window in its frame."
   (delete-other-windows))
@@ -166,17 +211,12 @@ Clicks in the minibuffer are left alone."
   (dolist (fn '(recentf-open-files-action recentf-open-most-recent-file))
     (advice-add fn :after #'eh/solo-window)))
 
-;;; Paths
-  (dolist (p '("local" "eh" "themes"))
-    (add-to-list 'load-path
-                 (expand-file-name
-                  (locate-user-emacs-file p))))
-
-(setq spaceline-all-the-icons-slim-render t)
-(load-library "eh-mode-line")  ; installs spaceline and friends
-(require 'spaceline-config)
-;; (require 'EH-spaceline-all-the-icons-separators)
-(spaceline-all-the-icons-theme)
+;; from "Life is too short for Bad Code" blog.
+(defun stop-using-minibuffer ()
+  "kill the minibuffer"
+  (when (and (>= (recursion-depth) 1) (active-minibuffer-window))
+    (abort-recursive-edit)))
+(add-hook 'mouse-leave-buffer-hook 'stop-using-minibuffer)
 
 (defun eh/toggle-visible ()
   "Pop up via sxhkd"
@@ -187,62 +227,15 @@ Clicks in the minibuffer are left alone."
   (message "toggle-visible")
   )
 
+(setq global-text-scale-adjust-resizes-frames t) ; zoom keys are in section 10
 
+;;;; 7. Programming
 
-;;; Packages (archives and use-package settings are at the top of this file)
-(message "Package system up.")
-
-;;; Things needed but can't run every startup.
-(defun eh/first-run ()
-  (all-the-icons-install-fonts t)
-  )
-
-;; Miscellaneous Standard Emacs settings.
- (defconst query-replace-highlight t)    ; Highlight during query
- (defconst search-highlight t)           ; Hilight incremental search
- (setq lazy-highlight-initial-delay 2)
- (setq cursor-in-nonselected-windows t)
- (setq scroll-step 1)                    ; Don't make big jumps
- (defalias 'yes-or-no-p 'y-or-n-p )      ; Don't want to type y-e-s
- (setq-default
-  ;; we usually want a final newline...
-  require-final-newline 't
-  ;; require-final-newline nil
-  ;; No tabs in my programs!
-  ;; indent-tabs-mode nil
-  ;; I don't like emacs destroying my window setup
-  even-window-heights nil
-  ;; Same here
-  ;; resize-mini-windows t
-  max-mini-window-height 10
-  ;; No am/pm here
-  display-time-24hr-format t
-  ;; A tab is 8 spaces is 8 spaces is 8 spaces
-  default-tab-width 4
-  ;; case insensitivity for the masses!
-  case-fold-search t
-  read-file-name-completion-ignore-case t
-  completion-ignore-case t
-  ;; Looking at wrapped lines causes eye/brain-strain
-  truncate-lines t
-  what-cursor-show-names t
-  )
-
-(put 'upcase-region 'disabled nil)
-(put 'downcase-region 'disabled nil)
-(put 'narrow-to-region 'disabled nil)
-(put 'dired-find-alternate-file 'disabled nil)
-(put 'dired-find-alternate-file 'disabled nil)
-
-(add-function :after after-focus-change-function (lambda () (unless (frame-focus-state) (save-some-buffers t))))
-
-
-;; Everything `my-prog-mode-hook' calls must be installed before the hook is
-;; added: installing a package runs `prog-mode-hook' in its source buffers.
 (use-package company)
 (use-package fira-code-mode)
 (use-package rainbow-delimiters)
 (use-package rainbow-mode) ;; colorize color names and hex strings.
+(autoload 'rainbow-mode "rainbow-mode")
 
 (defun my-prog-mode-hook ()
   (fira-code-mode t)
@@ -257,14 +250,8 @@ Clicks in the minibuffer are left alone."
   (local-set-key "\C-cc" 'comment-line)
   )
 (add-hook 'prog-mode-hook 'my-prog-mode-hook)
-
-;; (use-package uv
-;;   :straight (uv :type git :host github :repo "johannes-mueller/uv.el"))
-;; (use-package uv)
-;; (use-package tomlparse)
-
-;; (use-package uv-mode
-;;   :hook (python-mode . uv-mode-auto-activate-hook))
+;; *scratch* already exists, so the hook above never ran for it.
+(rainbow-delimiters-mode)
 
 ;;; Python
 (defun eh-python-hook ()
@@ -276,8 +263,7 @@ Clicks in the minibuffer are left alone."
   (setq tab-width 4)
   (rainbow-delimiters-mode-enable)
   ;; (local-set-key (kbd "C-c C-c") 'eh/send-to-python)
-  (local-set-key (kbd "C-,") '
-		 python-indent-shift-left)
+  (local-set-key (kbd "C-,") 'python-indent-shift-left)
   (local-set-key (kbd "C-.") 'python-indent-shift-right)
   (local-set-key (kbd "<kp-4>") 'python-indent-shift-left)
   (local-set-key (kbd "<kp-6>") 'python-indent-shift-right)
@@ -287,143 +273,9 @@ Clicks in the minibuffer are left alone."
   (local-set-key (kbd "M-n") 'display-line-numbers-mode)
   (add-to-list 'write-file-functions 'delete-trailing-whitespace)
   )
-
 (add-hook 'python-mode-hook 'eh-python-hook)
 
-
-
-;; (autoload 'rainbow-delimiters "rainbow-delimiters")
-(autoload 'rainbow-mode "rainbow-mode")
-
-
-
-
-;; Make sure to set files that begin with shebang executable.
-;; shebang library didn't work, but this code from hlu does
-(defun hlu-make-script-executable ()
-  "If file starts with a shebang, make `buffer-file-name' executable"
-  (save-excursion
-    (save-restriction
-      (widen)
-      (goto-char (point-min))
-      (when (and (looking-at "^#!")
-                 (not (file-executable-p buffer-file-name)))
-        (set-file-modes buffer-file-name
-                        (logior (file-modes buffer-file-name) #o100))
-        ;; (message (concat "Made " buffer-file-name " executable"))))))
-        (message (concat "Made executable."))))))
-(add-hook 'after-save-hook 'hlu-make-script-executable)
-
-;; from "Life is too short for Bad Code" blog.
-(defun stop-using-minibuffer ()
-  "kill the minibuffer"
-  (when (and (>= (recursion-depth) 1) (active-minibuffer-window))
-    (abort-recursive-edit)))
-
-(add-hook 'mouse-leave-buffer-hook 'stop-using-minibuffer)
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Needs re-org. Not part of minimal config.
-;;;;; Needs Lucida Casual (load-library "eh-mode-line")
-
-
-
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-
-
-;; Schedule eh-mode-line for after init done.
-;; (load-library "eh-mode-line")
-;; (spaceline-all-the-icons-theme)
-
-
-
-;; (Add-hook 'emacs-startup-hook
-;; 	  (lambda () (bury-buffer " *Warnings* ")))
-
-;; ;; ;; ;; ;; ;; Trials f   rom old moby init.el:
-;;
-(add-function :after after-focus-change-function (lambda () (unless (frame-focus-state) (save-some-buffers t))))
-
-(defun endless/fill-or-unfill ()
-  "Like `fill-paragraph', but unfill if used twice."
-  (interactive)
-  (let ((fill-column
-         (if (eq last-command 'endless/fill-or-unfill)
-             (progn (setq this-command nil)
-                    (point-max))
-           fill-column)))
-    (call-interactively #'fill-paragraph)))
-
-(global-set-key [remap fill-paragraph]
-                #'endless/fill-or-unfill)
-
-(defun eh/elisp-eval ()
-  (interactive)
-  (if (region-active-p)
-      (eval-region (region-beginning) (region-end))
-    (eval-buffer)
-    )
-  )
-(global-set-key (kbd "C-c e") 'eh/elisp-eval)
-
-;; End trials from old moby.
-
-
-
-(use-package sxhkdrc-mode)
-
-(use-package rainbow-delimiters)
-(rainbow-delimiters-mode)
-
-(load-library "eh-cursor")
-
-(use-package recentf)
-(recentf-mode t)
-
-(setq global-text-scale-adjust-resizes-frames t)
-
-(use-package vundo)
-
-;; Load init-heavy.el
-
-;; (add-hook 'emacs-startup-hook
-;; (lambda () (interactive)
-;;   (message "Waiting in lambda.")
-;;   (sit-for 5)
-;;   (select-frame-set-input-focus (selected-frame))
-;; ))
-;; (add-hook 'emacs-startup-hook 'raise-frame)
-
-(save-place-mode)
-
-;;; Restored 2026-09-25 from the pre-trim init.el (Archived/top-level/init.el.backup).
-(delete-selection-mode t)
-(global-auto-revert-mode t)
-
-(setq frame-title-format
-      (list
-       "ξmacs:  "
-       '((:eval (if (buffer-file-name)
-                    (abbreviate-file-name (buffer-file-name))
-                  "%b")))
-       "  on  "
-       (system-name)))
-
-(setopt dictionary-search-interface   'help
-        dictionary-default-strategy  "prefix"
-        dictionary-default-dictionary "gcide"
-        dictionary-server             "dict.org")
-(keymap-global-set "M-#" #'dictionary-search)
-(dictionary-tooltip-mode t)
+;;;; 8. Writing
 
 (use-package olivetti)
 (defun eh/olivetti ()
@@ -434,7 +286,121 @@ Clicks in the minibuffer are left alone."
   (delete-other-windows)
   (olivetti-mode)
   (toggle-frame-fullscreen))
-;; C-c d is bound to `eh/olivetti' with the other global keys near the top.
+(global-set-key "\C-cd" 'eh/olivetti)
+
+(defun endless/fill-or-unfill ()
+  "Like `fill-paragraph', but unfill if used twice."
+  (interactive)
+  (let ((fill-column
+         (if (eq last-command 'endless/fill-or-unfill)
+             (progn (setq this-command nil)
+                    (point-max))
+           fill-column)))
+    (call-interactively #'fill-paragraph)))
+(global-set-key [remap fill-paragraph]
+                #'endless/fill-or-unfill)
+
+(setopt dictionary-search-interface   'help
+        dictionary-default-strategy  "prefix"
+        dictionary-default-dictionary "gcide"
+        dictionary-server             "dict.org")
+(keymap-global-set "M-#" #'dictionary-search)
+(dictionary-tooltip-mode t)
+
+;;;; 9. Small tools
+
+(defun eh/elisp-eval ()
+  (interactive)
+  (if (region-active-p)
+      (eval-region (region-beginning) (region-end))
+    (eval-buffer)
+    )
+  )
+(global-set-key (kbd "C-c e") 'eh/elisp-eval)
+
+(defun eh/what-face (pos)
+  "Show the name of face under point."
+  (interactive "d")
+  (let ((face (or (get-char-property (point) 'read-face-name)
+                  (get-char-property (point) 'face))))
+    (if face (message "Face: %s" face) (message "No face at %d" pos))))
+(global-set-key (kbd "C-c w") 'eh/what-face)
+
+(use-package show-font
+  :ensure t
+  :bind
+  (("C-c C-f" . show-font-select-preview)
+   ("C-c f" . show-font-tabulated)))
+
+(use-package fill-column-indicator
+  :init
+  (setq fci-rule-width 1)
+  (setq fci-rule-color "darkgrey")
+  (global-set-key "\C-cF" 'fci-mode)
+  )
+
+(use-package sxhkdrc-mode)
+(use-package vundo)
+
+;;;; 10. Keys
+;; Keys for built-in commands.  Keys for my own commands are next to the
+;; commands (sections 6, 8 and 9).
+
+;; Mar. 21 2026
+(global-unset-key (kbd "C-z"))
+(global-unset-key (kbd "M-z"))
+;; Super-i bound to insert i-accute
+(global-set-key (kbd "s-i") (lambda () (interactive) (insert ?\í)))
+
+;; Navigation
+(global-set-key [home] 'beginning-of-buffer)
+(global-set-key [end] 'end-of-buffer)
+(global-set-key [select] 'end-of-buffer)
+(global-set-key [C-tab] 'mode-line-other-buffer) ;; Finally 6Nov24
+(global-set-key "\C-t" 'hs-toggle-hiding)
+(global-set-key "\C-T" 'hs-hide-all)
+
+;; Open my init / profile
+(global-set-key [insert] (lambda () (interactive)
+			   (find-file "~/.emacs.d/init.el")
+			   (delete-other-windows)))
+(global-set-key [S-insert] (lambda () (interactive)
+			   (find-file "~/.profile")
+			   (delete-other-windows)))
+
+;; Keypad
+(global-set-key [kp-end] 'delete-other-windows)
+(global-set-key [kp-enter] 'execute-extended-command)
+(global-set-key [kp-insert] 'delete-window)
+(global-set-key (kbd "<kp-1>") 'delete-other-windows)
+(global-set-key (kbd "<kp-0>") 'delete-window)
+
+;; Zoom in and out.
+(global-set-key (kbd "C-=")      'text-scale-increase)
+(global-set-key (kbd "C--")      'text-scale-decrease)
+
+;; C-c prefix
+(global-set-key (kbd "C-c o") 'occur)
+(global-set-key (kbd "C-c b") 'list-bookmarks)
+;; (global-set-key "\C-cs" 'sudo-edit)
+(global-set-key "\C-c\C-k" 'kill-emacs)
+(global-set-key (kbd "C-c r") 'recentf-open-files)
+(global-set-key (kbd "C-c R") 'recentf-open-most-recent-file)
+(global-set-key "\C-ci" 'indent-region)
+(global-set-key [(super f)] 'make-frame)
+
+;; Bound to commands that do not exist (yet): they error when pressed.
+;; Xah's no-keymap keymap. Try local-set key.
+(global-set-key (kbd "`") nil)
+(global-set-key (kbd "` a") 'cmd1)
+(global-set-key (kbd "` b") 'cmd2)
+(global-set-key (kbd "` c") 'cmd3)
+(global-set-key [kp-7] 'kp-7-target)
+(global-set-key (kbd "C-c t") 'trimmings)
+(global-set-key (kbd "C-c m") 'moccur)
+
+;;;; 11. Startup
+;; Landing screen, Emacs server, then the load report.
 
 ;;; Landing screen for Emacs/emacsclient with no file argument.
 ;; Goal: when entering Emacs without asking for a specific file, show the most
@@ -565,36 +531,21 @@ Run after a zero-second timer so file-visiting clients get their file first."
 (unless noninteractive
   (eh/server-start-maybe))
 
-;; Back up every file on save.  ~/scripts/emacs-push.sh keeps a timestamped
-;; local copy in ~/.emacs.d/Emacs_Backups and pushes to the other machines.
-(defun eh-backup-file ()
-  "Execute a shell script to backup the just-saved file."
-  (interactive)
-  (message "%s" (shell-command-to-string (concat "~/scripts/emacs-push.sh "
-						 buffer-file-name)))
-
-)
-(add-hook 'after-save-hook 'eh-backup-file)
-
-;;;;;;;;;;;; Emacs initialization was successful. (We got this far.)
+;;; Emacs initialization was successful. (We got this far.)
 ;; (setq emacs-name "ξmacs") ;;(propertize "ξmacs" 'face  '(:foreground "blue")))
 (setq emacs-name (propertize "ξmacs" 'face  '(:foreground "deepskyblue")))
 (setq version (format "%s %S.%S" emacs-name emacs-major-version emacs-minor-version))
 ;; (setq init-from  (propertize user-init-file 'face  '(:foreground "yellow")))
-    (setq init-from  (propertize (file-name-nondirectory (or user-init-file "init.el")) 'face  '(:foreground "yellow")))
+(setq init-from  (propertize (file-name-nondirectory (or user-init-file "init.el")) 'face  '(:foreground "yellow")))
 
 (setq time-message (format "%s loaded from %s in %0.2fs" version init-from
                            (float-time (time-since emacs-load-start-time))))
-
-
 
 (setq server-id
       (let ((id (eh/server-id-string)))
         (propertize id 'face `(:foreground ,(if (string-prefix-p "No server" id)
                                                 "red"
                                               "blue")))))
-
-
 
 (message "%s   GCs: %S in %0.2fs  %s"
 	 time-message gcs-done gc-elapsed server-id)
