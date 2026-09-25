@@ -404,6 +404,18 @@ Clicks in the minibuffer are left alone."
 ;; (add-hook 'emacs-startup-hook 'raise-frame)
 
 (save-place-mode)
+
+;; Back up every file on save.  ~/scripts/emacs-push.sh keeps a timestamped
+;; local copy in ~/.emacs.d/Emacs_Backups and pushes to the other machines.
+(defun eh-backup-file ()
+  "Execute a shell script to backup the just-saved file."
+  (interactive)
+  (message "%s" (shell-command-to-string (concat "~/scripts/emacs-push.sh "
+						 buffer-file-name)))
+
+)
+(add-hook 'after-save-hook 'eh-backup-file)
+
 ;;;;;;;;;;;; Emacs initialization was successful. (We got this far.)
 ;; (setq emacs-name "ξmacs") ;;(propertize "ξmacs" 'face  '(:foreground "blue")))
 (setq emacs-name (propertize "ξmacs" 'face  '(:foreground "deepskyblue")))
