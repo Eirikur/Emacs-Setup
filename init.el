@@ -2,10 +2,33 @@
 ;; early-init.el sets `package-enable-at-startup' to nil, so packages in elpa/
 ;; are only on `load-path' / `custom-theme-load-path' after this call.  It must
 ;; come before anything that requires a package or loads a theme.
+(setq package-archives
+      '(("melpa"        . "https://melpa.org/packages/")
+	("melpa-stable" . "https://stable.melpa.org/packages/")
+        ("gnu"          . "https://elpa.gnu.org/packages/")
+        ))
+
+;; Turn on priorities of package sources in Emacs 25
+(setq package-archive-priorities
+      '(("melpa-stable" . 10)
+        ("elpa" . 20)
+        ("gnu" . 5)
+        ))
 (package-initialize)
 
+(setq ;; `use-package'
+ use-package-always-ensure t ;; Causes package archive lookups at startup.
+ use-package-always-defer t
+ ;; use-package-enable-imenu-support t
+ use-package-minimum-reported-time 0
+ use-package-verbose t)
+(eval-when-compile
+  (require 'use-package))
+
 (setq no-confirm-load-theme t)
-(load-theme 'waher :no-confirm)
+(use-package waher-theme
+  :demand t
+  :config (load-theme 'waher :no-confirm))
 
 (setq inhibit-splash-screen t)
 (fset 'display-startup-echo-area-message 'ignore)
@@ -154,8 +177,8 @@ Clicks in the minibuffer are left alone."
                   (locate-user-emacs-file p))))
 
 (setq spaceline-all-the-icons-slim-render t)
+(load-library "eh-mode-line")  ; installs spaceline and friends
 (require 'spaceline-config)
-(load-library "eh-mode-line")
 ;; (require 'EH-spaceline-all-the-icons-separators)
 (spaceline-all-the-icons-theme)
 
@@ -170,29 +193,7 @@ Clicks in the minibuffer are left alone."
 
 
 
-;;; Packages
-(setq package-archives
-      '(("melpa"        . "https://melpa.org/packages/")
-	("melpa-stable" . "https://stable.melpa.org/packages/")
-        ("gnu"          . "https://elpa.gnu.org/packages/")
-        ))
-
-;; Turn on priorities of package sources in Emacs 25
-(setq package-archive-priorities
-      '(("melpa-stable" . 10)
-        ("elpa" . 20)
-        ("gnu" . 5)
-        ))
-
-(setq ;; `use-package'
- use-package-always-ensure t ;; Causes package archive lookups at startup.
- use-package-always-defer t
- ;; use-package-enable-imenu-support t
- use-package-minimum-reported-time 0
- use-package-verbose t)
-(eval-when-compile
-  (require 'use-package))
-
+;;; Packages (archives and use-package settings are at the top of this file)
 (message "Package system up.")
 
 ;;; Things needed but can't run every startup.
@@ -239,6 +240,13 @@ Clicks in the minibuffer are left alone."
 
 (add-function :after after-focus-change-function (lambda () (unless (frame-focus-state) (save-some-buffers t))))
 
+
+;; Everything `my-prog-mode-hook' calls must be installed before the hook is
+;; added: installing a package runs `prog-mode-hook' in its source buffers.
+(use-package company)
+(use-package fira-code-mode)
+(use-package rainbow-delimiters)
+(use-package rainbow-mode) ;; colorize color names and hex strings.
 
 (defun my-prog-mode-hook ()
   (fira-code-mode t)
@@ -288,10 +296,7 @@ Clicks in the minibuffer are left alone."
 
 
 
-(use-package rainbow-delimiters)
 ;; (autoload 'rainbow-delimiters "rainbow-delimiters")
-
-(use-package rainbow-mode) ;; colorize color names and hex strings.
 (autoload 'rainbow-mode "rainbow-mode")
 
 
