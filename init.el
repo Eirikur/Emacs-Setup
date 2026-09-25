@@ -384,6 +384,9 @@ Clicks in the minibuffer are left alone."
   (setq fci-rule-color "darkgrey")
   :bind ("C-c F" . fci-mode))
 
+(use-package color-moccur               ; multi-buffer occur (grep)
+  :bind ("C-c m" . moccur))
+
 (use-package sxhkdrc-mode)
 (use-package vundo)
 
@@ -436,14 +439,8 @@ Clicks in the minibuffer are left alone."
 (bind-key "C-c i" #'indent-region)
 (bind-key "s-f" #'make-frame)
 
-;; Bound to commands that do not exist (yet): they error when pressed.
-;; Xah's no-keymap keymap. Try local-set key.
-(unbind-key "`")
-(bind-key "` a" #'cmd1)
-(bind-key "` b" #'cmd2)
-(bind-key "` c" #'cmd3)
+;; Bound to a command that does not exist (yet): it errors when pressed.
 (bind-key "<kp-7>" #'kp-7-target)
-(bind-key "C-c m" #'moccur)
 
 ;;;; 11. Startup
 ;; Landing screen, Emacs server, then the load report.
