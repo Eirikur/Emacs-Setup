@@ -18,9 +18,13 @@
 ;;     than the divider and every orange end cap stops short of the top and
 ;;     bottom edge (the curve does not span the bar).  Symptom to look for:
 ;;     the cap after the first block is not one smooth curve top to bottom.
-;;     Numbers here: divider is 70 px at scale 1.0, and the Lucida line at
-;;     rescale 1.2 is 78 px, so scale 1.1 (79 px) fits.  Try scale = (text
-;;     line px / 70) rounded up; too big only makes the whole bar taller.
+;;     Numbers here: divider is 70 px at scale 1.0; the Lucida line at rescale
+;;     1.2 is 78 px and the modified icon 79 px.  Scale 1.1 was too small (cap
+;;     5 px short at the bottom); 1.2 (bar 85 px) leaves 1 px top, 2 px bottom.
+;;     `eh-mode-line-separator-v-adjust' nudges the glyph up/down (-0.01 is
+;;     about 1 px lower); it only trades top gap for bottom gap.  Too big a
+;;     scale just makes the whole bar taller.  Measure: at the first divider's
+;;     left edge, count the non-orange rows at the top and bottom of the bar.
 ;;
 ;; Gotchas:
 ;;  - RESTART Emacs after any of this.  Spaceline compiles the mode line, and
@@ -97,11 +101,14 @@
 (add-to-list 'face-font-rescale-alist '("Lucida Casual" . 1.2))
 ;; The wave separators must be at least as tall as the text line, or the end
 ;; caps stop short of the top and bottom of the bar.  Their size is a fixed
-;; 1.6 in spaceline; that matched Fira Code, but the enlarged Lucida line is
-;; taller (78 px), so scale the separators (and only them) by this much.
-;; If the Lucida scale above goes up, raise this too.  Check by eye: the
-;; orange end cap should be one smooth curve from top to bottom.
-(defvar eh-mode-line-separator-scale 1.1
+;; 1.6 in spaceline; that matched Fira Code, but the enlarged Lucida line and
+;; the bigger icons are taller, so scale the separators (and only them) by this
+;; much.  Even so the glyph never quite fills the bar: about 2 px is built in
+;; (the original Fira mode line had 2 px too), so the aim is a total gap of ~3
+;; px split top/bottom, set by `eh-mode-line-separator-v-adjust' below.
+;; If the Lucida scale above goes up, raise this too.  Check by eye at 3x:
+;; the orange end cap should be one smooth curve from top to bottom.
+(defvar eh-mode-line-separator-scale 1.2
   "Extra scale for the wave separators, on top of spaceline's 1.6.")
 
 (defun eh-mode-line--scale-separators (orig &optional height)
@@ -109,6 +116,17 @@
   (let ((v (funcall orig height)))
     (if (eql height 1.6) (* v eh-mode-line-separator-scale) v)))
 (advice-add 'spaceline-all-the-icons--height :around #'eh-mode-line--scale-separators)
+
+(defvar eh-mode-line-separator-v-adjust -0.01
+  "Vertical offset of the wave separators (a `raise' factor; negative = lower).")
+
+(defun eh-mode-line--lower-separators (args)
+  "Filter ARGS of `all-the-icons-alltheicon': offset the separator glyphs."
+  (if (and (stringp (car args))
+           (string-match-p "\\`\\(wave\\|slant\\|cup\\|arrow\\)-\\(left\\|right\\)\\'" (car args)))
+      (append (list (car args)) (plist-put (copy-sequence (cdr args)) :v-adjust eh-mode-line-separator-v-adjust))
+    args))
+(advice-add 'all-the-icons-alltheicon :filter-args #'eh-mode-line--lower-separators)
 
 (defun eh-mode-line-set-fonts (&rest _)
   "Give the mode line its family.  Re-run after a theme is enabled."
