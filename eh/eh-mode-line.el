@@ -14,14 +14,16 @@
 ;;  2. Size:  the `face-font-rescale-alist' entry.  Its key is the font name,
 ;;     so change it when you change the family.  Use this, not a face :height.
 ;;     Icon size: `eh-mode-line-modified-icon-scale' (the modified/lock icon).
-;;  3. Bar height:  `eh-mode-line-bar-height' is the pixel height of the
-;;     separator images, and it sets the height of the whole bar.  It must be
-;;     at least as tall as the tallest text/icon on the line, or the bar is
-;;     taller than the images and the curves show a small step at the top and
-;;     bottom edge.  Find the number by trial: set it, restart, and read the
-;;     bar height with M-: (window-mode-line-height).  It should equal the
-;;     value you set (Lucida at 1.2 plus the 1.45 icon needs 84; 82 gave a
-;;     bar of 83, i.e. one step).  Bigger just makes the bar taller.
+;;  3. Bar height:  AUTOMATIC.  The separator images must be exactly as tall
+;;     as the bar, and the bar is as tall as its tallest text or icon.
+;;     `eh-mode-line-calibrate' measures that at startup and for each new
+;;     frame (draw with tiny separators, read `window-mode-line-height', size
+;;     the images to it, re-check), so a different font, size or screen DPI
+;;     needs no hand tuning.  M-x eh-mode-line-calibrate re-measures in a
+;;     running Emacs; restart after a DPI change, since Emacs reads the DPI
+;;     at startup.  To force a height, set `eh-mode-line-bar-height' to an
+;;     integer.  Tested: default 83 px, Lucida x1.5 -> 103, smaller default
+;;     font -> 62; the divider height matched the bar each time.
 ;;
 ;; Gotchas:
 ;;  - RESTART Emacs after any of this.  Spaceline compiles the mode line, and
@@ -181,8 +183,17 @@
 ;;; top), so draw each one as an anti-aliased XPM exactly `eh-mode-line-bar-height'
 ;;; pixels tall.  The shape is two quarter-ellipses joined by a straight
 ;;; stretch: region SF (with a tongue at the top) on one side, EF on the other.
-(defvar eh-mode-line-bar-height 84
-  "Pixel height of the wave separators, which sets the mode line height.")
+(defvar eh-mode-line-bar-height 'auto
+  "Pixel height of the wave separators, which sets the mode line height.
+`auto' means measure it from the fonts (see `eh-mode-line-calibrate'); an
+integer forces that height.")
+
+(defvar eh-mode-line--auto-height 84
+  "Height found by `eh-mode-line-calibrate'; 84 is only the starting guess.")
+
+(defun eh-mode-line--height ()
+  "The separator height in use."
+  (if (integerp eh-mode-line-bar-height) eh-mode-line-bar-height eh-mode-line--auto-height))
 
 (defvar eh-mode-line--wave-cache (make-hash-table :test 'equal))
 
@@ -201,7 +212,7 @@
   "A string that displays a wave separator image.
 DIR is \"right\" (SF on the left) or \"left\" (mirrored, SF on the right).
 SF and EF are the two colours; the edge is anti-aliased between them."
-  (let* ((h eh-mode-line-bar-height)
+  (let* ((h (eh-mode-line--height))
          (w (round (* 0.52 h)))
          (key (list dir sf ef h)))
     (or (gethash key eh-mode-line--wave-cache)
@@ -237,6 +248,44 @@ SF and EF are the two colours; the edge is anti-aliased between them."
                  (s (propertize " " 'display (create-image xpm 'xpm t :ascent 'center :scale 1))))
             (puthash key s eh-mode-line--wave-cache)
             s)))))
+
+;;; Automatic height.  The bar is as tall as its tallest part, and the images
+;;; must be exactly that tall.  So: draw the mode line with tiny separators to
+;;; find the natural height of the text and icons, then size the separators to
+;;; it and re-measure until the bar equals the separator height.  Runs at
+;;; startup and for each new frame; M-x eh-mode-line-calibrate after changing a
+;;; font or moving to a screen with a different DPI (Emacs reads the DPI at
+;;; startup, so restart in that case).
+(defun eh-mode-line--measure ()
+  "Redraw and return the mode line height in pixels of the first window."
+  (force-mode-line-update t)
+  (redisplay t)
+  (window-mode-line-height (car (window-list nil 'no-mini))))
+
+(defun eh-mode-line-calibrate (&optional _frame)
+  "Set `eh-mode-line--auto-height' so the separators match the bar."
+  (interactive)
+  (when (and (display-graphic-p) (not (integerp eh-mode-line-bar-height)))
+    (with-demoted-errors "eh-mode-line-calibrate: %S"
+      (let ((old eh-mode-line--auto-height) (tries 0) natural bar)
+        (setq eh-mode-line--auto-height 4)
+        (clrhash eh-mode-line--wave-cache)
+        (setq natural (eh-mode-line--measure))
+        (if (< natural 20)
+            (setq eh-mode-line--auto-height old)   ; no mode line to measure
+          (setq eh-mode-line--auto-height natural)
+          (while (and (< (setq tries (1+ tries)) 5)
+                      (progn (clrhash eh-mode-line--wave-cache)
+                             (setq bar (eh-mode-line--measure))
+                             (> bar eh-mode-line--auto-height)))
+            (setq eh-mode-line--auto-height bar)))
+        (clrhash eh-mode-line--wave-cache)
+        (force-mode-line-update t)
+        (when (called-interactively-p 'interactive)
+          (message "Mode line height: %d px" eh-mode-line--auto-height))))))
+
+(add-hook 'window-setup-hook #'eh-mode-line-calibrate)
+(add-hook 'after-make-frame-functions #'eh-mode-line-calibrate)
 
 ;; Same as the separator segments in spaceline-all-the-icons-separators.el
 ;; (macro copied from `define-spaceline-all-the-icons--separator'), except that
