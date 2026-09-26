@@ -8,6 +8,7 @@
 !README.md
 !eh/
 eh/*
+!eh/eh-claude-follow.el
 !eh/eh-cursor.el
 !eh/eh-mode-line.el
 !local/

@@ -422,6 +422,11 @@ Clicks in the minibuffer are left alone."
     (if face (message "Face: %s" face) (message "No face at %d" pos))))
 (bind-key "C-c w" #'eh/what-face)
 
+;; Follow Claude Code's edits in a side window; C-c v flips diff <-> file.
+;; A hook script (outside this repo) feeds it through emacsclient.
+(load-library "eh-claude-follow")
+(bind-key "C-c v" #'eh/claude-follow-toggle)
+
 (use-package show-font
   :ensure t
   :bind
