@@ -52,6 +52,73 @@
 ;;  (spaceline-all-the-icons-theme)
   )
 
+;;; Fonts.  The mode line is set in Lucida Casual; only the file name uses
+;;; the terminal font.  The frame's default font is left alone.  Only the
+;;; family is set on the faces, so the spaceline scaling
+;;; (`spaceline-all-the-icons--height') keeps working.
+;;; Lucida Casual runs small next to Fira Code, so it is enlarged with
+;;; `face-font-rescale-alist' rather than a face :height: that rescales only
+;;; this font's glyphs, not the wave separators, which are icon-font glyphs
+;;; sized separately.  The separators still fill the bar at any scale; the
+;;; scale only sets the bar height (70 px at 1.0, 77 px at 1.2, 88 px at 1.35).
+(add-to-list 'face-font-rescale-alist '("Lucida Casual" . 1.2))
+
+(defface eh-mode-line-file-name
+  '((t :family "DaddyTimeMono Nerd Font"))
+  "Face for the file name in the mode line."
+  :group 'spaceline-all-the-icons)
+
+(defun eh-mode-line-set-fonts (&rest _)
+  "Give the mode line its family.  Re-run after a theme is enabled."
+  (dolist (face '(mode-line mode-line-inactive))
+    (set-face-attribute face nil :family "Lucida Casual")))
+
+(eh-mode-line-set-fonts)
+(add-hook 'enable-theme-functions #'eh-mode-line-set-fonts)
+
+;; Same as the stock segment in spaceline-all-the-icons-segments.el, except
+;; the file name gets `eh-mode-line-file-name'.  (The stock code ends its face
+;; list with a bare :inherit, which cannot carry a font.)  Spaceline inlines
+;; segment code when the mode line is compiled, so this must be defined before
+;; `spaceline-all-the-icons-theme' runs (init.el does that).
+(spaceline-define-segment all-the-icons-buffer-id
+  "An `all-the-icons' segment to display current buffer id"
+  (let* ((height (if spaceline-all-the-icons-slim-render 1.0 0.8))
+         (raise  (if spaceline-all-the-icons-slim-render 0.1 0.2))
+
+         (help-echo (format "Major-mode: `%s'" major-mode))
+
+         (file-face `(:height ,(spaceline-all-the-icons--height height)))
+         (show-path? (and active
+                          spaceline-all-the-icons-buffer-path-p
+                          (spaceline-all-the-icons--buffer-path)
+                          (not spaceline-all-the-icons-slim-render)))
+
+         (have-projectile? (and (fboundp 'projectile-project-p) (projectile-project-p)))
+         (show-projectile? (and spaceline-all-the-icons-projectile-p have-projectile?))
+
+         (buffer-id (if (and (buffer-file-name)
+                             (or show-path? show-projectile?))
+                        (file-name-nondirectory (buffer-file-name))
+                      (format-mode-line "%b")))
+
+         (mouse-f (if have-projectile? 'projectile-find-file 'find-file)))
+
+    (when (and spaceline-all-the-icons-highlight-file-name show-path?)
+      (setq file-face (append `(:background ,(spaceline-all-the-icons--face-background default-face)
+                                :foreground ,(or spaceline-all-the-icons-file-name-highlight
+                                                 (spaceline-all-the-icons--face-background highlight-face)))
+                              file-face)))
+    (setq file-face (append file-face '(:inherit eh-mode-line-file-name)))
+
+    (propertize buffer-id
+                'face file-face
+                'display `(raise ,raise)
+                'help-echo help-echo
+                'mouse-face (spaceline-all-the-icons--highlight)
+                'local-map (make-mode-line-mouse-map 'mouse-1 mouse-f)))
+  :tight t)
+
 (if (fboundp 'spaceline-all-the-icons-theme)
     (message "Spaceline is good.")
   (message "Spaceline had a problem!"))
