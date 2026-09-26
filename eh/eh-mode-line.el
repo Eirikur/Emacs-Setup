@@ -1,30 +1,27 @@
 ;; (set-face-attribute 'mode-line nil :font "LucidaCasual 24" :background 'unspecified  :height 180)  -*- lexical-binding: t; -*-
 ;;; CHANGING A MODE LINE FONT -- read this first.
 ;;
-;; The mode line is spaceline-all-the-icons: text, icons and the orange/grey
-;; wave dividers ("separators") are separate glyphs from three fonts, and the
-;; dividers' size is fixed by spaceline, not by the text font.  Change a font
-;; and the dividers no longer fit unless you re-fit them.  Three knobs below:
+;; The mode line is spaceline-all-the-icons: text and icons come from several
+;; fonts.  The orange/grey wave dividers ("separators") are NOT font glyphs
+;; here: they are small anti-aliased images drawn to an exact pixel height
+;; (`eh-mode-line-wave-image' below), because the icon font's wave glyphs never
+;; filled the bar (the curves stopped short, the right-hand ones left a flat
+;; "toe", and the glyph edge showed a thin coloured line).  Three knobs:
 ;;
 ;;  1. Family:  `eh-mode-line-set-fonts' (Lucida Casual on mode-line and
 ;;     mode-line-inactive).  File-name font: the :family string in the
 ;;     `all-the-icons-buffer-id' segment (DaddyTimeMono Nerd Font).
 ;;  2. Size:  the `face-font-rescale-alist' entry.  Its key is the font name,
-;;     so change it when you change the family.  Use this, not a face :height:
-;;     :height would also scale the dividers.  Icon sizes are separate:
-;;     `eh-mode-line-modified-icon-scale' (the modified/lock icon).
-;;  3. Dividers:  `eh-mode-line-separator-scale'.  RULE: the divider glyph must
-;;     be at least as tall as the text line.  If not, the bar is a bit taller
-;;     than the divider and every orange end cap stops short of the top and
-;;     bottom edge (the curve does not span the bar).  Symptom to look for:
-;;     the cap after the first block is not one smooth curve top to bottom.
-;;     Numbers here: divider is 70 px at scale 1.0; the Lucida line at rescale
-;;     1.2 is 78 px and the modified icon 79 px.  Scale 1.1 was too small (cap
-;;     5 px short at the bottom); 1.2 (bar 85 px) leaves 1 px top, 2 px bottom.
-;;     `eh-mode-line-separator-v-adjust' nudges the glyph up/down (-0.01 is
-;;     about 1 px lower); it only trades top gap for bottom gap.  Too big a
-;;     scale just makes the whole bar taller.  Measure: at the first divider's
-;;     left edge, count the non-orange rows at the top and bottom of the bar.
+;;     so change it when you change the family.  Use this, not a face :height.
+;;     Icon size: `eh-mode-line-modified-icon-scale' (the modified/lock icon).
+;;  3. Bar height:  `eh-mode-line-bar-height' is the pixel height of the
+;;     separator images, and it sets the height of the whole bar.  It must be
+;;     at least as tall as the tallest text/icon on the line, or the bar is
+;;     taller than the images and the curves show a small step at the top and
+;;     bottom edge.  Find the number by trial: set it, restart, and read the
+;;     bar height with M-: (window-mode-line-height).  It should equal the
+;;     value you set (Lucida at 1.2 plus the 1.45 icon needs 84; 82 gave a
+;;     bar of 83, i.e. one step).  Bigger just makes the bar taller.
 ;;
 ;; Gotchas:
 ;;  - RESTART Emacs after any of this.  Spaceline compiles the mode line, and
@@ -33,9 +30,13 @@
 ;;    Powerline appends the segment's face to whatever list we give it.  A
 ;;    face symbol, or a bare :inherit at the end, replaces the segment's
 ;;    background (dark patch behind the name) or overrides :family.
+;;  - The separator images ignore Emacs's automatic image scaling
+;;    (:scale 1); without that they come out about 2.5x too tall.
 ;;  - Heights alone can look right in a pixel measurement and still be wrong:
 ;;    check by eye at 3x zoom.  When testing, do not visit this file in a test
 ;;    Emacs (a stray keystroke there once ate the hyphen in `use-package').
+;;  - The images need a graphical display and XPM support (both Emacs builds
+;;    here have it); on a terminal the old icon glyphs are used.
 
 ;;-pyrs-FontAwesome-regular-normal-normal-*-*-*-*-*-*-0-iso10646-1
 ;;(set-face-attribute 'mode-line nil :font "FontAwesome" :background 'unspecified :height 235)
@@ -91,42 +92,10 @@
 
 ;;; Fonts.  The mode line is set in Lucida Casual; only the file name uses
 ;;; the terminal font.  The frame's default font is left alone.  Only the
-;;; family is set on the faces, so the spaceline scaling
-;;; (`spaceline-all-the-icons--height') keeps working.
-;;; Lucida Casual runs small next to Fira Code, so it is enlarged with
-;;; `face-font-rescale-alist' rather than a face :height: that rescales only
-;;; this font's glyphs, not the wave separators, which are icon-font glyphs
-;;; sized separately.  The separators still fill the bar at any scale; the
-;;; scale only sets the bar height (70 px at 1.0, 77 px at 1.2, 88 px at 1.35).
+;;; family is set on the faces.  Lucida Casual runs small next to Fira Code,
+;;; so it is enlarged with `face-font-rescale-alist' rather than a face
+;;; :height, which would also scale the icons and spaceline's own sizes.
 (add-to-list 'face-font-rescale-alist '("Lucida Casual" . 1.2))
-;; The wave separators must be at least as tall as the text line, or the end
-;; caps stop short of the top and bottom of the bar.  Their size is a fixed
-;; 1.6 in spaceline; that matched Fira Code, but the enlarged Lucida line and
-;; the bigger icons are taller, so scale the separators (and only them) by this
-;; much.  Even so the glyph never quite fills the bar: about 2 px is built in
-;; (the original Fira mode line had 2 px too), so the aim is a total gap of ~3
-;; px split top/bottom, set by `eh-mode-line-separator-v-adjust' below.
-;; If the Lucida scale above goes up, raise this too.  Check by eye at 3x:
-;; the orange end cap should be one smooth curve from top to bottom.
-(defvar eh-mode-line-separator-scale 1.2
-  "Extra scale for the wave separators, on top of spaceline's 1.6.")
-
-(defun eh-mode-line--scale-separators (orig &optional height)
-  "Around advice for `spaceline-all-the-icons--height': enlarge separators."
-  (let ((v (funcall orig height)))
-    (if (eql height 1.6) (* v eh-mode-line-separator-scale) v)))
-(advice-add 'spaceline-all-the-icons--height :around #'eh-mode-line--scale-separators)
-
-(defvar eh-mode-line-separator-v-adjust -0.01
-  "Vertical offset of the wave separators (a `raise' factor; negative = lower).")
-
-(defun eh-mode-line--lower-separators (args)
-  "Filter ARGS of `all-the-icons-alltheicon': offset the separator glyphs."
-  (if (and (stringp (car args))
-           (string-match-p "\\`\\(wave\\|slant\\|cup\\|arrow\\)-\\(left\\|right\\)\\'" (car args)))
-      (append (list (car args)) (plist-put (copy-sequence (cdr args)) :v-adjust eh-mode-line-separator-v-adjust))
-    args))
-(advice-add 'all-the-icons-alltheicon :filter-args #'eh-mode-line--lower-separators)
 
 (defun eh-mode-line-set-fonts (&rest _)
   "Give the mode line its family.  Re-run after a theme is enabled."
@@ -206,6 +175,114 @@
                 'mouse-face (spaceline-all-the-icons--highlight)
                 'local-map (make-mode-line-mouse-map 'mouse-1 'read-only-mode)))
   :tight t)
+
+;;; Wave separators as images.
+;;; The icon font's wave glyphs are shorter than the bar (see the note at the
+;;; top), so draw each one as an anti-aliased XPM exactly `eh-mode-line-bar-height'
+;;; pixels tall.  The shape is two quarter-ellipses joined by a straight
+;;; stretch: region SF (with a tongue at the top) on one side, EF on the other.
+(defvar eh-mode-line-bar-height 84
+  "Pixel height of the wave separators, which sets the mode line height.")
+
+(defvar eh-mode-line--wave-cache (make-hash-table :test 'equal))
+
+(defun eh-mode-line--rgb (color)
+  "COLOR as a list of 0-255 red, green, blue."
+  (mapcar (lambda (x) (/ x 257)) (color-values (or color "black"))))
+
+(defun eh-mode-line--wave-boundary (y h w)
+  "X of the boundary at pixel row position Y, in a cell H high and W wide."
+  (let* ((xm (* 0.5 w)) (y1 (* 0.36 h)) (y2 (* 0.64 h)))
+    (cond ((< y y1) (- w (* (- w xm) (sqrt (max 0 (- 1 (expt (/ (- y y1) y1) 2)))))))
+          ((<= y y2) xm)
+          (t (* xm (sqrt (max 0 (- 1 (expt (/ (- y y2) (- h y2)) 2)))))))))
+
+(defun eh-mode-line-wave-image (dir sf ef)
+  "A string that displays a wave separator image.
+DIR is \"right\" (SF on the left) or \"left\" (mirrored, SF on the right).
+SF and EF are the two colours; the edge is anti-aliased between them."
+  (let* ((h eh-mode-line-bar-height)
+         (w (round (* 0.52 h)))
+         (key (list dir sf ef h)))
+    (or (gethash key eh-mode-line--wave-cache)
+        (let* ((a (eh-mode-line--rgb sf))
+               (b (eh-mode-line--rgb ef))
+               (levels 12) (sub 6)
+               (mirror (equal dir "left"))
+               (rows nil))
+          (dotimes (row h)
+            (let ((cov (make-vector w 0.0)))
+              (dotimes (s sub)
+                (let ((xb (eh-mode-line--wave-boundary (+ row (/ (+ s 0.5) sub)) h w)))
+                  (dotimes (x w)
+                    (aset cov x (+ (aref cov x)
+                                   (/ (max 0.0 (min 1.0 (- xb x))) sub))))))
+              (push (concat "\"" (mapconcat
+                                  (lambda (x)
+                                    (char-to-string
+                                     (+ ?a (round (* levels (aref cov (if mirror (- w 1 x) x)))))))
+                                  (number-sequence 0 (1- w)) "")
+                            "\"")
+                    rows)))
+          (let* ((colors (cl-loop for i from 0 to levels
+                                  collect (let ((c (/ (float i) levels)))
+                                            (format "\"%c c #%02x%02x%02x\"" (+ ?a i)
+                                                    (round (+ (* c (nth 0 a)) (* (- 1 c) (nth 0 b))))
+                                                    (round (+ (* c (nth 1 a)) (* (- 1 c) (nth 1 b))))
+                                                    (round (+ (* c (nth 2 a)) (* (- 1 c) (nth 2 b))))))))
+                 (xpm (concat "/* XPM */\nstatic char *wave[] = {\n"
+                              (format "\"%d %d %d 1\",\n" w h (1+ levels))
+                              (mapconcat #'identity colors ",\n") ",\n"
+                              (mapconcat #'identity (nreverse rows) ",\n") "};\n"))
+                 (s (propertize " " 'display (create-image xpm 'xpm t :ascent 'center :scale 1))))
+            (puthash key s eh-mode-line--wave-cache)
+            s)))))
+
+;; Same as the separator segments in spaceline-all-the-icons-separators.el
+;; (macro copied from `define-spaceline-all-the-icons--separator'), except that
+;; the wave type draws the image above.  Other types, and terminals, still get
+;; the icon glyph.
+(defmacro eh-mode-line--define-separator (name direction start-face end-face &optional invert)
+  `(spaceline-define-segment
+       ,(intern (format "all-the-icons-separator-%s" name))
+     (let ((separator (spaceline-all-the-icons-separators--get-type))
+           (direction (spaceline-all-the-icons-separators--get-direction ,direction))
+           (sf (if (functionp ,start-face) (funcall ,start-face) ,start-face))
+           (ef (if (functionp ,end-face) (funcall ,end-face) ,end-face)))
+       (when spaceline-all-the-icons-separators-invert-direction
+         (setq sf (prog1 ef (setq ef sf))))
+       (when (and (eq separator 'slant) (equal direction "left"))
+         (setq sf (prog1 ef (setq ef sf))))
+       (unless (or (eq separator 'none)
+                   (string= (spaceline-all-the-icons--face-background sf)
+                            (spaceline-all-the-icons--face-background ef)))
+         (if (and (eq separator 'wave) (display-images-p))
+             (eh-mode-line-wave-image direction
+                                      (spaceline-all-the-icons--face-background sf)
+                                      (spaceline-all-the-icons--face-background ef))
+           (propertize (all-the-icons-alltheicon (format "%s-%s" separator direction) :v-adjust 0.0)
+                       'face `(:height ,(spaceline-all-the-icons--height 1.6)
+                               :family ,(all-the-icons-alltheicon-family)
+                               :foreground ,(spaceline-all-the-icons--face-background sf)
+                               :background ,(spaceline-all-the-icons--face-background ef))))))
+     :skip-alternate t :tight t :when (if ,invert (not active) active)))
+
+(eh-mode-line--define-separator left-active-1 "right" spaceline-highlight-face-func 'powerline-active1)
+(eh-mode-line--define-separator left-active-2 "right" 'powerline-active1 spaceline-highlight-face-func)
+(eh-mode-line--define-separator left-active-3 "right" spaceline-highlight-face-func 'mode-line)
+(eh-mode-line--define-separator left-active-4 "right" 'mode-line 'powerline-active2)
+(eh-mode-line--define-separator left-extra-1 "right" 'mode-line 'powerline-active1)
+(eh-mode-line--define-separator left-extra-2 "right" 'powerline-active1 'powerline-active2)
+(eh-mode-line--define-separator right-active-1 "left" 'mode-line 'powerline-active2)
+(eh-mode-line--define-separator right-active-2 "left" 'powerline-active1 'mode-line)
+(eh-mode-line--define-separator minor-mode-right "right" spaceline-highlight-face-func 'powerline-active2)
+(eh-mode-line--define-separator minor-mode-left  "left"  spaceline-highlight-face-func 'powerline-active2)
+(eh-mode-line--define-separator left-inactive "right" 'powerline-inactive1 'powerline-inactive2 t)
+(eh-mode-line--define-separator right-inactive "left" 'powerline-inactive1 'powerline-inactive2 t)
+(eh-mode-line--define-separator paradox-1 "right" spaceline-highlight-face-func 'powerline-active1)
+(eh-mode-line--define-separator paradox-2 "right" 'powerline-active1 'powerline-active2)
+(eh-mode-line--define-separator paradox-3 "left" 'mode-line 'powerline-active2)
+(eh-mode-line--define-separator paradox-4 "right" 'mode-line 'powerline-active2)
 
 (if (fboundp 'spaceline-all-the-icons-theme)
     (message "Spaceline is good.")
