@@ -380,7 +380,7 @@ Clicks in the minibuffer are left alone."
 
 (use-package fill-column-indicator
   :init
-  (setq fci-rule- width 1)
+  (setq fci-rule-width 1)
   (setq fci-rule-color "darkgrey")
   :bind ("C-c F" . fci-mode))
 
