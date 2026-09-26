@@ -63,11 +63,6 @@
 ;;; scale only sets the bar height (70 px at 1.0, 77 px at 1.2, 88 px at 1.35).
 (add-to-list 'face-font-rescale-alist '("Lucida Casual" . 1.2))
 
-(defface eh-mode-line-file-name
-  '((t :family "DaddyTimeMono Nerd Font"))
-  "Face for the file name in the mode line."
-  :group 'spaceline-all-the-icons)
-
 (defun eh-mode-line-set-fonts (&rest _)
   "Give the mode line its family.  Re-run after a theme is enabled."
   (dolist (face '(mode-line mode-line-inactive))
@@ -77,8 +72,14 @@
 (add-hook 'enable-theme-functions #'eh-mode-line-set-fonts)
 
 ;; Same as the stock segment in spaceline-all-the-icons-segments.el, except
-;; the file name gets `eh-mode-line-file-name'.  (The stock code ends its face
-;; list with a bare :inherit, which cannot carry a font.)  Spaceline inlines
+;; the file name gets the terminal font.  The face is a one-element list
+;; holding the attributes, because powerline appends the segment's own face to
+;; it: `((:height H :family F) powerline-active1)' keeps our font (first wins)
+;; and still gets the segment's background.  The stock code ends its plist with
+;; a bare :inherit that powerline fills in, but an :inherit at the end of a
+;; plist overrides the plist's earlier attributes, including :family; and
+;; naming a face there instead loses the background (a darker patch behind the
+;; file name, spoiling the separators beside it).  Spaceline inlines
 ;; segment code when the mode line is compiled, so this must be defined before
 ;; `spaceline-all-the-icons-theme' runs (init.el does that).
 (spaceline-define-segment all-the-icons-buffer-id
@@ -109,7 +110,7 @@
                                 :foreground ,(or spaceline-all-the-icons-file-name-highlight
                                                  (spaceline-all-the-icons--face-background highlight-face)))
                               file-face)))
-    (setq file-face (append file-face '(:inherit eh-mode-line-file-name)))
+    (setq file-face (list (append file-face '(:family "DaddyTimeMono Nerd Font"))))
 
     (propertize buffer-id
                 'face file-face
