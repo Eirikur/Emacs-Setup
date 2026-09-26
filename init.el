@@ -1,11 +1,13 @@
 ;;; init.el --- -*- lexical-binding: t; -*-
+;; Time-stamp: <2026-09-12 05:46:28 eh>
 
 ;; Sections (search for ";;;; " to jump between them):
 ;;    1. Startup basics      clock, Customize, package archives, use-package
 ;;    2. Load path
 ;;    3. Appearance          theme, title, mode line, cursor
 ;;    4. Editing defaults
-;;    5. Files and backups   recentf, save-place, per-save backup, shebang chmod
+;;    5. Files and backups   recentf, save-place, per-save backup, shebang chmod,
+;;                            init.el syntax check
 ;;    6. Windows and mouse   one window at a time
 ;;    7. Programming         prog-mode and Python
 ;;    8. Writing             olivetti, fill/unfill, dictionary
@@ -172,6 +174,54 @@
 (delete-selection-mode t)
 
 ;;;; 5. Files and backups
+
+;; time-stamps
+(setq ;; when there's "Time-stamp: <>" in the first 10 lines of the file
+  time-stamp-active t ; do enable time-stamps
+  time-stamp-line-limit 10   ; check first 10 buffer lines for Time-stamp: <>
+  time-stamp-format "%Y-%02m-%02d %02H:%02M:%02S (%u)") ; date format
+(add-hook 'before-save-hook 'time-stamp)
+
+;; Refuse to save init.el or early-init.el when it no longer reads as Lisp, so
+;; a stray paren can't leave Emacs unable to start.  The check only reads the
+;; forms (nothing is evaluated).  Auto-save still keeps the unsaved edits.
+(defvar eh/verify-init-on-save t
+  "Non-nil means saving init.el or early-init.el first checks that it reads.
+To save a half-finished edit anyway: M-: (setq eh/verify-init-on-save nil)")
+
+(defun eh/verify-init-before-save ()
+  "Abort the save if this init file has unbalanced parens or bad syntax.
+Leaves point on the problem; otherwise leaves point where it was.
+Runs from `write-file-functions' because errors in `before-save-hook' are
+demoted to messages and the save goes ahead.  Returns nil so the file is
+then written normally."
+  (when (and eh/verify-init-on-save
+             buffer-file-name
+             (member (file-truename buffer-file-name)
+                     (mapcar (lambda (f) (file-truename (locate-user-emacs-file f)))
+                             '("init.el" "early-init.el"))))
+    (let ((start (point))
+          problem)
+      (save-restriction
+        (widen)
+        (push-mark start t)
+        (condition-case err
+            (progn
+              (check-parens)            ; unbalanced: reports the spot
+              (goto-char (point-min))
+              (while (progn (forward-comment (point-max)) (not (eobp)))
+                (read (current-buffer))))
+          (error (setq problem err)))
+        (if problem
+            (user-error "%s NOT saved, line %d: %s"
+                        (file-name-nondirectory buffer-file-name)
+                        (line-number-at-pos)
+                        (error-message-string problem))
+          (goto-char start)))))
+  nil)
+;; Runs after `before-save-hook' (so after `time-stamp') and before the write.
+(add-hook 'write-file-functions #'eh/verify-init-before-save)
+
 
 (use-package recentf)
 (recentf-mode t)
