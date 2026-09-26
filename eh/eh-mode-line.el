@@ -1,4 +1,37 @@
 ;; (set-face-attribute 'mode-line nil :font "LucidaCasual 24" :background 'unspecified  :height 180)  -*- lexical-binding: t; -*-
+;;; CHANGING A MODE LINE FONT -- read this first.
+;;
+;; The mode line is spaceline-all-the-icons: text, icons and the orange/grey
+;; wave dividers ("separators") are separate glyphs from three fonts, and the
+;; dividers' size is fixed by spaceline, not by the text font.  Change a font
+;; and the dividers no longer fit unless you re-fit them.  Three knobs below:
+;;
+;;  1. Family:  `eh-mode-line-set-fonts' (Lucida Casual on mode-line and
+;;     mode-line-inactive).  File-name font: the :family string in the
+;;     `all-the-icons-buffer-id' segment (DaddyTimeMono Nerd Font).
+;;  2. Size:  the `face-font-rescale-alist' entry.  Its key is the font name,
+;;     so change it when you change the family.  Use this, not a face :height:
+;;     :height would also scale the dividers.  Icon sizes are separate:
+;;     `eh-mode-line-modified-icon-scale' (the modified/lock icon).
+;;  3. Dividers:  `eh-mode-line-separator-scale'.  RULE: the divider glyph must
+;;     be at least as tall as the text line.  If not, the bar is a bit taller
+;;     than the divider and every orange end cap stops short of the top and
+;;     bottom edge (the curve does not span the bar).  Symptom to look for:
+;;     the cap after the first block is not one smooth curve top to bottom.
+;;     Numbers here: divider is 70 px at scale 1.0, and the Lucida line at
+;;     rescale 1.2 is 78 px, so scale 1.1 (79 px) fits.  Try scale = (text
+;;     line px / 70) rounded up; too big only makes the whole bar taller.
+;;
+;; Gotchas:
+;;  - RESTART Emacs after any of this.  Spaceline compiles the mode line, and
+;;    reloading this file into a running Emacs leaves the old one in place.
+;;  - The file-name face must be an inner list, `((:height H :family F))'.
+;;    Powerline appends the segment's face to whatever list we give it.  A
+;;    face symbol, or a bare :inherit at the end, replaces the segment's
+;;    background (dark patch behind the name) or overrides :family.
+;;  - Heights alone can look right in a pixel measurement and still be wrong:
+;;    check by eye at 3x zoom.  When testing, do not visit this file in a test
+;;    Emacs (a stray keystroke there once ate the hyphen in `use-package').
 
 ;;-pyrs-FontAwesome-regular-normal-normal-*-*-*-*-*-*-0-iso10646-1
 ;;(set-face-attribute 'mode-line nil :font "FontAwesome" :background 'unspecified :height 235)
@@ -62,6 +95,20 @@
 ;;; sized separately.  The separators still fill the bar at any scale; the
 ;;; scale only sets the bar height (70 px at 1.0, 77 px at 1.2, 88 px at 1.35).
 (add-to-list 'face-font-rescale-alist '("Lucida Casual" . 1.2))
+;; The wave separators must be at least as tall as the text line, or the end
+;; caps stop short of the top and bottom of the bar.  Their size is a fixed
+;; 1.6 in spaceline; that matched Fira Code, but the enlarged Lucida line is
+;; taller (78 px), so scale the separators (and only them) by this much.
+;; If the Lucida scale above goes up, raise this too.  Check by eye: the
+;; orange end cap should be one smooth curve from top to bottom.
+(defvar eh-mode-line-separator-scale 1.1
+  "Extra scale for the wave separators, on top of spaceline's 1.6.")
+
+(defun eh-mode-line--scale-separators (orig &optional height)
+  "Around advice for `spaceline-all-the-icons--height': enlarge separators."
+  (let ((v (funcall orig height)))
+    (if (eql height 1.6) (* v eh-mode-line-separator-scale) v)))
+(advice-add 'spaceline-all-the-icons--height :around #'eh-mode-line--scale-separators)
 
 (defun eh-mode-line-set-fonts (&rest _)
   "Give the mode line its family.  Re-run after a theme is enabled."
