@@ -442,6 +442,21 @@ Clicks in the minibuffer are left alone."
 (use-package color-moccur               ; multi-buffer occur (grep)
   :bind ("C-c m" . moccur))
 
+;; A real terminal in Emacs (M-x vterm), from Debian's elpa-vterm and
+;; emacs-libvterm packages (the module is prebuilt).  29.3 finds them by
+;; itself; the 32.0.50 build in /usr/local doesn't look under /usr/share.
+;; Building the MELPA vterm from source fails here: /usr/bin/libtool is a stray
+;; symlink to libtoolize, which is not libtool, and libvterm's build needs
+;; the real one (package libtool-bin).
+;; So do NOT declare this with `use-package vterm :ensure t': the MELPA copy
+;; would install into the shared elpa/, outrank Debian's on BOTH binaries, and
+;; (having no module) break vterm on 29.3 as well.
+(unless (locate-library "vterm")
+  (let ((dir (car (last (file-expand-wildcards
+                         "/usr/share/emacs/site-lisp/elpa/vterm-*")))))
+    (when dir (add-to-list 'load-path dir))))
+(autoload 'vterm "vterm" "Terminal emulator." t)
+
 (use-package sxhkdrc-mode)
 (use-package vundo)
 
