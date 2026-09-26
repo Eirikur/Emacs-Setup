@@ -119,6 +119,28 @@
                 'local-map (make-mode-line-mouse-map 'mouse-1 mouse-f)))
   :tight t)
 
+;; The "file is modified" icon looks small beside the enlarged Lucida Casual
+;; (the icon font is not rescaled).  Same as the stock segment, but its size
+;; comes from this multiplier instead of the stock 1.1.
+(defvar eh-mode-line-modified-icon-scale 1.45
+  "Size of the buffer-state icon (modified, saved, read-only) in the mode line.")
+
+(spaceline-define-segment all-the-icons-modified
+  "An `all-the-icons' segment depiciting the current buffers state"
+  (let* ((buffer-state (format-mode-line "%*"))
+         (icon (cond
+                ((string= buffer-state "-") (car (spaceline-all-the-icons-icon-set-modified)))
+                ((string= buffer-state "*") (cdr (spaceline-all-the-icons-icon-set-modified)))
+                ((string= buffer-state "%") "lock"))))
+
+    (propertize (all-the-icons-faicon icon :v-adjust 0.0)
+                'face `(:family ,(all-the-icons-faicon-family)
+                        :height ,(spaceline-all-the-icons--height eh-mode-line-modified-icon-scale)
+                        :inherit)
+                'mouse-face (spaceline-all-the-icons--highlight)
+                'local-map (make-mode-line-mouse-map 'mouse-1 'read-only-mode)))
+  :tight t)
+
 (if (fboundp 'spaceline-all-the-icons-theme)
     (message "Spaceline is good.")
   (message "Spaceline had a problem!"))
