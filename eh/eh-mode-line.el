@@ -170,6 +170,82 @@
                 'local-map (make-mode-line-mouse-map 'mouse-1 mouse-f)))
   :tight t)
 
+;;; Two-tone Python icon.  A font glyph is one colour (the mode line's face
+;;; overrides the icon face), so draw the Python.org blue/yellow logo as an
+;;; anti-aliased XPM, like the wave separators.  Approximation, not the
+;;; official artwork: a blue and a yellow hooked block, each the other turned
+;;; half a turn, with a gap between them and a white eye apiece.  Set
+;;; `eh-mode-line-python-image' to nil to use the font glyph instead.
+(defvar eh-mode-line-python-image t
+  "Non-nil means draw a two-tone image for the Python icon, not a font glyph.")
+
+(defvar eh-mode-line--python-cache (make-hash-table :test 'equal))
+
+(defconst eh-mode-line--py-chars
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-"
+  "Safe XPM pixel-code characters (no quote or backslash).")
+
+(defun eh-mode-line--py-box (x y x0 y0 x1 y1 r)
+  "Signed distance (negative inside) from X,Y to the rounded box X0,Y0,X1,Y1."
+  (let* ((hx (- (/ (- x1 x0) 2.0) r)) (hy (- (/ (- y1 y0) 2.0) r))
+         (qx (- (abs (- x (/ (+ x0 x1) 2.0))) hx))
+         (qy (- (abs (- y (/ (+ y0 y1) 2.0))) hy)))
+    (- (+ (sqrt (+ (expt (max qx 0) 2) (expt (max qy 0) 2))) (min (max qx qy) 0)) r)))
+
+(defun eh-mode-line--py-blue (x y)
+  "Signed distance to the blue block, in a unit square."
+  (min (eh-mode-line--py-box x y 0.30 0.03 0.64 0.52 0.10)
+       (eh-mode-line--py-box x y 0.05 0.30 0.64 0.52 0.0)
+       (eh-mode-line--py-box x y 0.05 0.30 0.50 0.66 0.10)))
+
+(defun eh-mode-line--py-pixel (x y)
+  "RGB list for the logo at X,Y in the unit square, or nil for background."
+  (let* ((db (eh-mode-line--py-blue x y))
+         (dy (eh-mode-line--py-blue (- 1.0 x) (- 1.0 y)))
+         (eye-b (- (sqrt (+ (expt (- x 0.38) 2) (expt (- y 0.15) 2))) 0.045))
+         (eye-y (- (sqrt (+ (expt (- x 0.62) 2) (expt (- y 0.85) 2))) 0.045)))
+    (cond ((<= dy 0) (if (<= eye-y 0) '(255 255 255) '(255 212 59)))
+          ((and (<= db 0) (> dy 0.035)) (if (<= eye-b 0) '(255 255 255) '(55 118 171)))
+          (t nil))))
+
+(defun eh-mode-line-python-image (n bg)
+  "A string displaying the two-tone Python icon, N pixels square, over BG."
+  (let ((key (list n bg)))
+    (or (gethash key eh-mode-line--python-cache)
+        (let* ((sub 4) (cnt (* sub sub)) (codes (make-hash-table :test 'equal))
+               (palette nil) (k 0) (rows nil)
+               (bg (eh-mode-line--rgb bg)))
+          (dotimes (row n)
+            (let ((line ""))
+              (dotimes (col n)
+                (let ((r 0.0) (g 0.0) (b 0.0))
+                  (dotimes (i sub)
+                    (dotimes (j sub)
+                      (let ((c (or (eh-mode-line--py-pixel (/ (+ col (/ (+ i .5) sub)) n)
+                                                           (/ (+ row (/ (+ j .5) sub)) n))
+                                   bg)))
+                        (cl-incf r (nth 0 c)) (cl-incf g (nth 1 c)) (cl-incf b (nth 2 c)))))
+                  ;; Quantise to steps of 4 so the palette stays small.
+                  (let* ((q (mapcar (lambda (v) (* 4 (round (/ v cnt) 4))) (list r g b)))
+                         (code (or (gethash q codes)
+                                   (let ((c (format "%c%c"
+                                                    (aref eh-mode-line--py-chars (/ k 64))
+                                                    (aref eh-mode-line--py-chars (% k 64)))))
+                                     (cl-incf k)
+                                     (puthash q c codes)
+                                     (push (format "\"%s c #%02x%02x%02x\"" c
+                                                   (min 255 (nth 0 q)) (min 255 (nth 1 q)) (min 255 (nth 2 q)))
+                                           palette)
+                                     c))))
+                    (setq line (concat line code)))))
+              (push (concat "\"" line "\"") rows)))
+          (let ((xpm (concat "/* XPM */\nstatic char *py[] = {\n"
+                             (format "\"%d %d %d 2\",\n" n n k)
+                             (mapconcat #'identity (nreverse palette) ",\n") ",\n"
+                             (mapconcat #'identity (nreverse rows) ",\n") "};\n")))
+            (puthash key (propertize " " 'display (create-image xpm 'xpm t :ascent 'center :scale 1))
+                     eh-mode-line--python-cache))))))
+
 ;; The major-mode icon.  The stock segment ends its face plist with a bare
 ;; :inherit, which overrides :family (see the header), so the icon was drawn in
 ;; Lucida and Emacs fell back to whichever installed font had the glyph (Python
@@ -178,12 +254,18 @@
 (spaceline-define-segment all-the-icons-mode-icon
   "An `all-the-icons' segment indicating the current buffer's mode with an icon"
   (let ((icon (all-the-icons-icon-for-mode major-mode)))
+    (if (and eh-mode-line-python-image
+             (display-graphic-p)
+             (memq major-mode '(python-mode python-ts-mode)))
+        (eh-mode-line-python-image
+         (round (* 0.56 (eh-mode-line--height)))
+         (face-background (if active 'powerline-active1 'powerline-inactive1) nil t))
     (unless (symbolp icon)
       (propertize icon
                   'help-echo (format "Major-mode: `%s'" major-mode)
                   'display '(raise 0)
                   'face `((:height ,(spaceline-all-the-icons--height 1.1)
-                           :family ,(all-the-icons-icon-family-for-mode major-mode))))))
+                           :family ,(all-the-icons-icon-family-for-mode major-mode)))))))
   :tight t)
 
 ;; The "file is modified" icon looks small beside the enlarged Lucida Casual
