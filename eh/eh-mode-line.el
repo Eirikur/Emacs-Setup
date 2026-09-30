@@ -210,7 +210,7 @@ Emacs 29 draws a PNG's transparent pixels black unless told the background."
              (file-readable-p eh-mode-line--python-icon-file)
              (memq major-mode '(python-mode python-ts-mode)))
         (eh-mode-line-python-image
-         (round (* 0.56 (eh-mode-line--height)))
+         (round (* 0.60 (eh-mode-line--height)))
          (face-background (if active 'powerline-active1 'powerline-inactive1) nil t))
     (unless (symbolp icon)
       (propertize icon
