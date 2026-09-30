@@ -32,7 +32,7 @@
 ;;    Powerline appends the segment's face to whatever list we give it.  A
 ;;    face symbol, or a bare :inherit at the end, replaces the segment's
 ;;    background (dark patch behind the name) or overrides :family.
-;;  - The separator images ignore Emacs's automatic image scaling
+;;  - The separator images (and the Python logo) ignore Emacs's automatic image scaling
 ;;    (:scale 1); without that they come out about 2.5x too tall.
 ;;  - Heights alone can look right in a pixel measurement and still be wrong:
 ;;    check by eye at 3x zoom.  When testing, do not visit this file in a test
@@ -194,7 +194,7 @@ Emacs 29 draws a PNG's transparent pixels black unless told the background."
     (or (gethash key eh-mode-line--python-cache)
         (puthash key (propertize " " 'display
                                  (create-image eh-mode-line--python-icon-file 'png nil
-                                               :height n :ascent 'center :background bg))
+                                               :height n :ascent 'center :scale 1 :background bg))
                  eh-mode-line--python-cache))))
 
 ;; The major-mode icon.  The stock segment ends its face plist with a bare
