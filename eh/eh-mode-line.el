@@ -39,6 +39,15 @@
 ;;    Emacs (a stray keystroke there once ate the hyphen in `use-package').
 ;;  - The images need a graphical display and XPM support (both Emacs builds
 ;;    here have it); on a terminal the old icon glyphs are used.
+;;  - WRONG ICON (2026-09-30): Python showed a "D" (the D-language logo).
+;;    ~/.local/share/fonts also holds file-icons and Material Icons, which
+;;    reuse all-the-icons' private-use code points, and the major-mode icon
+;;    arrives without its :family, so Emacs grabbed the wrong font.  Fixed in
+;;    the `all-the-icons' use-package block below: `set-fontset-font' claims
+;;    U+E900-E9FF for all-the-icons, and python-ts-mode is added to
+;;    `all-the-icons-mode-icon-alist'.  If another mode shows a wrong icon,
+;;    look up its code point and check which installed font also has it
+;;    (fc-list ":charset=e928" family file).
 
 ;;-pyrs-FontAwesome-regular-normal-normal-*-*-*-*-*-*-0-iso10646-1
 ;;(set-face-attribute 'mode-line nil :font "FontAwesome" :background 'unspecified :height 235)
@@ -47,7 +56,18 @@
 (use-package all-the-icons
   :ensure t
   :demand t
-  )
+  :config
+  ;; Other icon fonts in ~/.local/share/fonts (file-icons, Material Icons) use
+  ;; the same private-use code points.  The major-mode icon reaches the mode
+  ;; line with its :family only in `font-lock-face', which a mode line ignores,
+  ;; so Emacs picked the first font having the glyph: U+E928 (Python) came out
+  ;; as file-icons' D-language logo.  Claim the alltheicon range (E900-E9FF)
+  ;; for all-the-icons, ahead of the catch-all entry.
+  (set-fontset-font t '(#xE900 . #xE9FF) "all-the-icons" nil 'prepend)
+  ;; all-the-icons only knows python-mode; give the tree-sitter mode the same icon.
+  (let ((py (assq 'python-mode all-the-icons-mode-icon-alist)))
+    (when (and py (not (assq 'python-ts-mode all-the-icons-mode-icon-alist)))
+      (add-to-list 'all-the-icons-mode-icon-alist (cons 'python-ts-mode (cdr py))))))
 
 (use-package spaceline
   :ensure t
