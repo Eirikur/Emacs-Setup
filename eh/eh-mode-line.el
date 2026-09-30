@@ -187,7 +187,7 @@
 
 (defconst eh-mode-line--emacs-icon-file
   (expand-file-name "emacs-icon.png" (file-name-directory eh-mode-line--python-icon-file))
-  "The Emacs logo, recoloured (sky-blue disc, white E, dark-gray pen) from emacs.jpeg.")
+  "The Emacs logo, recoloured (blue disc, white E, dark-gray pen) from emacs.jpeg,\nredrawn as a full round disc.")
 
 (defvar eh-mode-line--python-cache (make-hash-table :test 'equal))
 
@@ -218,7 +218,8 @@ Emacs 29 draws a PNG's transparent pixels black unless told the background."
                            eh-mode-line--emacs-icon-file)))
               ((file-readable-p file)))
         (eh-mode-line-python-image
-         (round (* 0.60 (eh-mode-line--height)))
+         (round (* (if (eq file eh-mode-line--emacs-icon-file) 0.74 0.60)
+                   (eh-mode-line--height)))
          (face-background (if active 'powerline-active1 'powerline-inactive1) nil t)
          file)
     (unless (symbolp icon)
