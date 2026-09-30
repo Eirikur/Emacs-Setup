@@ -39,15 +39,16 @@
 ;;    Emacs (a stray keystroke there once ate the hyphen in `use-package').
 ;;  - The images need a graphical display and XPM support (both Emacs builds
 ;;    here have it); on a terminal the old icon glyphs are used.
-;;  - WRONG ICON (2026-09-30): Python showed a "D" (the D-language logo).
-;;    ~/.local/share/fonts also holds file-icons and Material Icons, which
-;;    reuse all-the-icons' private-use code points, and the major-mode icon
-;;    arrives without its :family, so Emacs grabbed the wrong font.  Fixed in
-;;    the `all-the-icons' use-package block below: `set-fontset-font' claims
-;;    U+E900-E9FF for all-the-icons, and python-ts-mode is added to
-;;    `all-the-icons-mode-icon-alist'.  If another mode shows a wrong icon,
-;;    look up its code point and check which installed font also has it
-;;    (fc-list ":charset=e928" family file).
+;;  - WRONG ICON (2026-09-30): Python showed a "D" (the D-language logo) and
+;;    elisp an onion.  ~/.local/share/fonts also holds file-icons and Material
+;;    Icons, which reuse all-the-icons' private-use code points, and the stock
+;;    `all-the-icons-mode-icon' segment lost the icon's :family (bare trailing
+;;    :inherit), so Emacs grabbed whichever font had the glyph.  Fixed by
+;;    redefining that segment below with an inner-list face; python-ts-mode is
+;;    also added to `all-the-icons-mode-icon-alist'.  (A fontset range claim
+;;    was tried first and broke elisp, which lives in file-icons.)  If another
+;;    mode shows a wrong icon, check which installed font also has its code
+;;    point:  fc-list ":charset=e928" family file
 
 ;;-pyrs-FontAwesome-regular-normal-normal-*-*-*-*-*-*-0-iso10646-1
 ;;(set-face-attribute 'mode-line nil :font "FontAwesome" :background 'unspecified :height 235)
@@ -57,13 +58,6 @@
   :ensure t
   :demand t
   :config
-  ;; Other icon fonts in ~/.local/share/fonts (file-icons, Material Icons) use
-  ;; the same private-use code points.  The major-mode icon reaches the mode
-  ;; line with its :family only in `font-lock-face', which a mode line ignores,
-  ;; so Emacs picked the first font having the glyph: U+E928 (Python) came out
-  ;; as file-icons' D-language logo.  Claim the alltheicon range (E900-E9FF)
-  ;; for all-the-icons, ahead of the catch-all entry.
-  (set-fontset-font t '(#xE900 . #xE9FF) "all-the-icons" nil 'prepend)
   ;; all-the-icons only knows python-mode; give the tree-sitter mode the same icon.
   (let ((py (assq 'python-mode all-the-icons-mode-icon-alist)))
     (when (and py (not (assq 'python-ts-mode all-the-icons-mode-icon-alist)))
@@ -174,6 +168,22 @@
                 'help-echo help-echo
                 'mouse-face (spaceline-all-the-icons--highlight)
                 'local-map (make-mode-line-mouse-map 'mouse-1 mouse-f)))
+  :tight t)
+
+;; The major-mode icon.  The stock segment ends its face plist with a bare
+;; :inherit, which overrides :family (see the header), so the icon was drawn in
+;; Lucida and Emacs fell back to whichever installed font had the glyph (Python
+;; became file-icons' "D", elisp the Perl onion).  As with the file name, the
+;; face is an inner list so the icon keeps its own icon-font family.
+(spaceline-define-segment all-the-icons-mode-icon
+  "An `all-the-icons' segment indicating the current buffer's mode with an icon"
+  (let ((icon (all-the-icons-icon-for-mode major-mode)))
+    (unless (symbolp icon)
+      (propertize icon
+                  'help-echo (format "Major-mode: `%s'" major-mode)
+                  'display '(raise 0)
+                  'face `((:height ,(spaceline-all-the-icons--height 1.1)
+                           :family ,(all-the-icons-icon-family-for-mode major-mode))))))
   :tight t)
 
 ;; The "file is modified" icon looks small beside the enlarged Lucida Casual
