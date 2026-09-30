@@ -185,15 +185,21 @@
                     (file-name-directory (or load-file-name buffer-file-name)))
   "The cropped Python logo.")
 
+(defconst eh-mode-line--emacs-icon-file
+  (expand-file-name "emacs-icon.png" (file-name-directory eh-mode-line--python-icon-file))
+  "The Emacs logo, recoloured (sky-blue disc, white E, dark-gray pen) from emacs.jpeg.")
+
 (defvar eh-mode-line--python-cache (make-hash-table :test 'equal))
 
-(defun eh-mode-line-python-image (n bg)
-  "A string displaying the Python logo, N pixels high, blended over colour BG.
+(defun eh-mode-line-python-image (n bg &optional file)
+  "A string displaying a logo, N pixels high, blended over colour BG.
+FILE defaults to the Python logo.
 Emacs 29 draws a PNG's transparent pixels black unless told the background."
-  (let ((key (list n bg)))
+  (let* ((file (or file eh-mode-line--python-icon-file))
+         (key (list n bg file)))
     (or (gethash key eh-mode-line--python-cache)
         (puthash key (propertize " " 'display
-                                 (create-image eh-mode-line--python-icon-file 'png nil
+                                 (create-image file 'png nil
                                                :height n :ascent 'center :scale 1 :background bg))
                  eh-mode-line--python-cache))))
 
@@ -205,13 +211,16 @@ Emacs 29 draws a PNG's transparent pixels black unless told the background."
 (spaceline-define-segment all-the-icons-mode-icon
   "An `all-the-icons' segment indicating the current buffer's mode with an icon"
   (let ((icon (all-the-icons-icon-for-mode major-mode)))
-    (if (and eh-mode-line-python-image
-             (display-graphic-p)
-             (file-readable-p eh-mode-line--python-icon-file)
-             (memq major-mode '(python-mode python-ts-mode)))
+    (if-let* (((and eh-mode-line-python-image (display-graphic-p)))
+              (file (cond ((memq major-mode '(python-mode python-ts-mode))
+                           eh-mode-line--python-icon-file)
+                          ((memq major-mode '(emacs-lisp-mode lisp-interaction-mode))
+                           eh-mode-line--emacs-icon-file)))
+              ((file-readable-p file)))
         (eh-mode-line-python-image
          (round (* 0.60 (eh-mode-line--height)))
-         (face-background (if active 'powerline-active1 'powerline-inactive1) nil t))
+         (face-background (if active 'powerline-active1 'powerline-inactive1) nil t)
+         file)
     (unless (symbolp icon)
       (propertize icon
                   'help-echo (format "Major-mode: `%s'" major-mode)

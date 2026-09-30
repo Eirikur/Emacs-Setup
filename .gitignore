@@ -14,6 +14,7 @@ eh/*
 !eh/eh-cursor.el
 !eh/eh-mode-line.el
 !eh/python-icon.png
+!eh/emacs-icon.png
 !local/
 local/*
 !local/cursor-chg.el
