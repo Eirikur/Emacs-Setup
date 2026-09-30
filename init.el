@@ -1,5 +1,6 @@
 ;;; init.el --- -*- lexical-binding: t; -*-
-;; Time-stamp: <2026-09-12 05:46:28 eh>
+;; Time-stamp: <2026-09-30 11:49:07 (eh)>
+
 
 ;; Sections (search for ";;;; " to jump between them):
 ;;    1. Startup basics      clock, Customize, package archives, use-package
@@ -135,6 +136,12 @@
 (load-library "eh-cursor")
 
 ;;;; 4. Editing defaults
+
+;; Speak UTF-8 regardless of the locale Emacs is started under (Eiríkur).
+;; With a UTF-8 locale Emacs already does this; these two lines make it so
+;; under LANG=C, from a cron job, or over ssh with a bare environment.
+(set-language-environment "UTF-8")
+(prefer-coding-system 'utf-8)
 
 (defconst query-replace-highlight t)    ; Highlight during query
 (defconst search-highlight t)           ; Hilight incremental search
