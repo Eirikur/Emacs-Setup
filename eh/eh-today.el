@@ -51,11 +51,16 @@
     (insert "\n* Top 3\n- [ ] \n- [ ] \n- [ ] \n\n")
     (when todo
       (insert "* Carried over\n" (string-join todo "\n") "\n\n"))
+    ;; org-pretty-table draws the corners from the rules: a rule as the very
+    ;; first line gives ┌─┬─┐, one between rows gives ├─┼─┤, and a rule as the
+    ;; very last line gives └─┴─┘.  Keep all three, and no blank line inside.
     (insert "* Schedule\n"
+            "|------+------+------|\n"
             "| Time | What | Done |\n"
             "|------+------+------|\n"
             "|      |      |      |\n"
-            "|      |      |      |\n\n")
+            "|      |      |      |\n"
+            "|------+------+------|\n\n")
     (insert "* Parking lot\n\n")
     (insert "* Done\n")))
 
@@ -70,8 +75,19 @@
       (eh-today--template)
       (save-buffer))
     (org-mode)
+    ;; org-modern hides every star; org-pretty-table (not org-modern) draws
+    ;; the tables.
+    (setq-local org-modern-hide-stars t
+                org-modern-star nil
+                org-modern-table nil)
+    (when (require 'org-modern nil t)
+      (org-modern-mode 1))
     (when (require 'org-pretty-table nil t)
-      (org-pretty-table-mode 1))
+      (org-pretty-table-mode 1)
+      ;; jit-lock runs the mode's function before font-lock, which then wipes
+      ;; its glyphs; move it to the end of the list.
+      (remove-hook 'jit-lock-functions #'org-pretty-table-propertize-region t)
+      (add-hook 'jit-lock-functions #'org-pretty-table-propertize-region t t))
     (when (require 'wps-face-mode nil t)
       (wps-face-mode 1))
     (goto-char (point-min))

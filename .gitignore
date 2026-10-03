@@ -20,3 +20,4 @@ eh/*
 !local/
 local/*
 !local/cursor-chg.el
+!local/org-pretty-table.el
