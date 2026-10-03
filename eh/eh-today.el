@@ -64,7 +64,7 @@
          (carry (and prev (eh-today--carry-over prev)))
          (left (car carry))
          (todo (cdr carry)))
-    (insert (format-time-string "#+TITLE: %A %Y-%m-%d\n\n"))
+    (insert (format-time-string "#+TITLE: %A, %B %-d, %Y\n\n"))
     (insert "* Right now\n\n")
     (insert "* Where I left off\n")
     (when (and left (not (string-empty-p left)))
