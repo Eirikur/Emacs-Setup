@@ -9,7 +9,6 @@
 (require 'color)
 (require 'ct)
 ;; (require 'palette)
-(setq debug-on-error t)
 
 ;; "#f5edd6 white #f5deb3 white
 
