@@ -106,8 +106,8 @@ color of the frame."
 
 ;; (keymap-local-set "<wheel-right>" 'text-scale-increase)
 ;; (keymap-local-set "<wheel-left>" 'text-scale-decrease)
-(keymap-local-set "<wheel-right>" 'val-up)
-(keymap-local-set "<wheel-left>" 'val-down)
+;; (keymap-local-set "<wheel-right>" 'val-up)
+;; (keymap-local-set "<wheel-left>" 'val-down)
 
 (defun wps-face-reload ()
   "Reload wps-face-mode.el and reapply the mode in the current buffer.
