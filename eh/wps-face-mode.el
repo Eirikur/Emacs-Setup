@@ -61,14 +61,25 @@ color of the frame."
             (face-remap-add-relative 'default 'wps-default-face))
     (face-remap-remove-relative wps-default-face-cookie))
 
-  ;; Headings: black in every org level, restored when the mode is turned off.
+  ;; Black text for headings and the other org faces that would otherwise
+  ;; show in theme colours.  Remapped per buffer, undone when the mode is off.
+  ;; Tables use the frame's monospace family: in the proportional font the
+  ;; columns (and the org-pretty-table frame) can't line up.
   (if wps-face-mode
       (setq wps-heading-cookies
-            (mapcar (lambda (n)
-                      (face-remap-add-relative
-                       (intern (format "org-level-%d" n))
-                       :foreground "black"))
-                    (number-sequence 1 8)))
+            (mapcar (lambda (spec)
+                      (face-remap-add-relative (car spec) (cdr spec)))
+                    (append
+                     (mapcar (lambda (n)
+                               (cons (intern (format "org-level-%d" n))
+                                     '(:foreground "black")))
+                             (number-sequence 1 8))
+                     (mapcar (lambda (f) (cons f '(:foreground "black")))
+                             '(org-document-title org-document-info
+                               org-document-info-keyword org-meta-line
+                               org-checkbox org-list-dt))
+                     `((org-table :foreground "black"
+                                  :family ,(face-attribute 'default :family))))))
     (mapc #'face-remap-remove-relative wps-heading-cookies)
     (setq wps-heading-cookies nil))
 
