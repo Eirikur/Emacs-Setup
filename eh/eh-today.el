@@ -36,6 +36,60 @@
           (seq-filter (lambda (l) (string-match-p "\\`- \\[ \\] +[^ ]" l))
                       (split-string text "\n")))))
 
+;; Keys that exist only on a day page (a minor mode, so they never leak):
+;;   C-c p  park a stray thought without leaving the place you are working
+;;   C-c x  mark the checkbox item on this line done and move it to "Done"
+(defvar eh-today-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "C-c p") #'eh-today-park)
+    (define-key map (kbd "C-c x") #'eh-today-done)
+    map))
+
+(define-minor-mode eh-today-mode
+  "Keys for a one-page day plan."
+  :lighter " Today"
+  :keymap eh-today-mode-map)
+
+(defun eh-today--section-end (heading)
+  "Return the position just after the last text of the \"* HEADING\" section.
+For an empty section that is the end of the heading line."
+  (save-excursion
+    (goto-char (point-min))
+    (unless (re-search-forward
+             (format "^\\* %s$" (regexp-quote heading)) nil t)
+      (user-error "No \"%s\" section on this page" heading))
+    (forward-line 1)
+    (goto-char (if (re-search-forward "^\\* " nil t)
+                   (match-beginning 0)
+                 (point-max)))
+    (skip-chars-backward " \t\n")
+    (point)))
+
+(defun eh-today-park (thought)
+  "Add THOUGHT to the Parking lot without moving point or the window."
+  (interactive "sPark: ")
+  (when (string-blank-p thought) (user-error "Nothing to park"))
+  (save-excursion
+    (goto-char (eh-today--section-end "Parking lot"))
+    (insert "\n- " (string-trim thought)))
+  (save-buffer)
+  (message "Parked: %s" (string-trim thought)))
+
+(defun eh-today-done ()
+  "Check off the item on this line and move it to the Done section."
+  (interactive)
+  (save-excursion
+    (beginning-of-line)
+    (unless (looking-at "[ \t]*- \\[ \\] +\\(.+\\)$")
+      (user-error "Not on an unchecked item"))
+    (let ((text (match-string 1)))
+      (delete-region (line-beginning-position)
+                     (min (point-max) (1+ (line-end-position))))
+      (goto-char (eh-today--section-end "Done"))
+      (insert "\n- [X] " text)
+      (message "Done: %s" text)))
+  (save-buffer))
+
 ;; The title text starts at the left; a leading space whose :align-to is
 ;; `center' minus half the text's pixel width tracks the window size by itself.
 (defun eh-today--center-title ()
@@ -102,6 +156,9 @@
     (setq-local org-modern-hide-stars t
                 org-modern-star nil
                 org-modern-table nil
+                ;; A round bullet; the default en dash looks like a tilde in
+                ;; Lucida Casual.
+                org-modern-list '((?+ . "•") (?- . "•") (?* . "•"))
                 ;; Hide "#+TITLE:" entirely; other keywords lose only "#+".
                 org-modern-keyword '(("title" . "") (t . t)))
     (when (require 'org-modern nil t)
@@ -114,6 +171,7 @@
       (add-hook 'jit-lock-functions #'org-pretty-table-propertize-region t t))
     (when (require 'wps-face-mode nil t)
       (wps-face-mode 1))
+    (eh-today-mode 1)
     (eh-today--center-title)
     (goto-char (point-min))
     (re-search-forward "^\\* Right now\n" nil t)))
