@@ -105,4 +105,16 @@ color of the frame."
 (keymap-local-set "<wheel-right>" 'val-up)
 (keymap-local-set "<wheel-left>" 'val-down)
 
+(defun wps-face-reload ()
+  "Reload wps-face-mode.el and reapply the mode in the current buffer.
+Turns the mode off first, so the remaps are removed by the old definition."
+  (interactive)
+  (let ((file (or (locate-library "wps-face-mode.el")
+                  (user-error "Can't find wps-face-mode.el"))))
+    (when (bound-and-true-p wps-face-mode)
+      (wps-face-mode -1))
+    (load file nil t)
+    (wps-face-mode 1)
+    (message "Reloaded %s" (abbreviate-file-name file))))
+
 (provide 'wps-face-mode)
