@@ -36,6 +36,28 @@
           (seq-filter (lambda (l) (string-match-p "\\`- \\[ \\] +[^ ]" l))
                       (split-string text "\n")))))
 
+;; The title text starts at the left; a leading space whose :align-to is
+;; `center' minus half the text's pixel width tracks the window size by itself.
+(defun eh-today--center-title ()
+  "Center the \"#+TITLE:\" text on its line, whatever the window width."
+  (save-excursion
+    (goto-char (point-min))
+    (when (re-search-forward "^#\\+TITLE: *" nil t)
+      (let* ((beg (match-end 0))
+             (end (line-end-position))
+             (win (get-buffer-window (current-buffer)))
+             (px (and win (> end beg)
+                      (car (window-text-pixel-size win beg end)))))
+        (mapc #'delete-overlay
+              (seq-filter (lambda (o) (overlay-get o 'eh-today-title))
+                          (overlays-in (point-min) (1+ end))))
+        (when px
+          (let ((o (make-overlay beg beg)))
+            (overlay-put o 'eh-today-title t)
+            (overlay-put o 'before-string
+                         (propertize " " 'display
+                                     `(space :align-to (- center (,(/ px 2))))))))))))
+
 (defun eh-today--template ()
   "Insert the skeleton for a new page, carrying over from the last one."
   (let* ((prev (eh-today--previous-file))
@@ -79,7 +101,9 @@
     ;; the tables.
     (setq-local org-modern-hide-stars t
                 org-modern-star nil
-                org-modern-table nil)
+                org-modern-table nil
+                ;; Hide "#+TITLE:" entirely; other keywords lose only "#+".
+                org-modern-keyword '(("title" . "") (t . t)))
     (when (require 'org-modern nil t)
       (org-modern-mode 1))
     (when (require 'org-pretty-table nil t)
@@ -90,6 +114,7 @@
       (add-hook 'jit-lock-functions #'org-pretty-table-propertize-region t t))
     (when (require 'wps-face-mode nil t)
       (wps-face-mode 1))
+    (eh-today--center-title)
     (goto-char (point-min))
     (re-search-forward "^\\* Right now\n" nil t)))
 
