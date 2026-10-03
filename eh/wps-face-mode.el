@@ -23,6 +23,10 @@
   "Remap the default face."
   :localxload- t
   :init-value nil
+  :keymap (let ((map (make-sparse-keymap)))
+            ;; Development hack: reload this file and reapply the mode.
+            (define-key map (kbd "C-c W") #'wps-face-reload)
+            map)
 
 ;;  (require 'eh-org-faces)
 
