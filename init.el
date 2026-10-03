@@ -671,3 +671,7 @@ Run after a zero-second timer so file-visiting clients get their file first."
 (select-frame-set-input-focus (selected-frame))
 
 ;; init.el ends
+
+;; One-page plan for today (~/org/days/YYYY-MM-DD.org); carries over yesterday.
+(load-library "eh-today")
+(bind-key "C-c T" #'eh-today)

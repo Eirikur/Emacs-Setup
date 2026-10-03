@@ -16,6 +16,7 @@ eh/*
 !eh/python-icon.png
 !eh/emacs-icon.png
 !eh/wps-face-mode.el
+!eh/eh-today.el
 !local/
 local/*
 !local/cursor-chg.el
