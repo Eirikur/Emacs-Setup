@@ -1,5 +1,5 @@
 ;;; init.el --- -*- lexical-binding: t; -*-
-;; Time-stamp: <2026-09-30 11:49:07 (eh)>
+;; Time-stamp: <2026-10-04 16:51:28 (eh)>
 
 
 ;; Sections (search for ";;;; " to jump between them):
@@ -108,7 +108,14 @@
 (load-library "eh-mode-line")
 (require 'spaceline-config)
 ;; (require 'EH-spaceline-all-the-icons-separators)
-(spaceline-all-the-icons-theme)
+(require 'eh-brain)                     ; clickable "Brain: right now" segment
+(spaceline-all-the-icons-theme 'eh-brain)
+;; Yellow highlight (was DarkGoldenrod2); saved waves are in eh/separators/.
+(set-face-background 'spaceline-highlight-face "#F4D43B")
+;; No grey band: make powerline-active2 the mode line's own colour, so the
+;; separators that met it (and the band around Brain) are not drawn.
+;; Comment this out to get the grey (#666666) back.
+(set-face-background 'powerline-active2 (face-background 'mode-line nil t))
 
 ;; Toggle the scroll bar, tool bar and menu bar.
 (defvar trimmings-active)
