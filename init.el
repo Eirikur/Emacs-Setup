@@ -680,5 +680,6 @@ Run after a zero-second timer so file-visiting clients get their file first."
 ;; init.el ends
 
 ;; One-page plan for today (~/org/days/YYYY-MM-DD.org); carries over yesterday.
+(load-library "eh-fancy")             ; org-modern + wps-face-mode stack, by tag/dir
 (load-library "eh-today")
 (bind-key "C-c T" #'eh-today)

@@ -17,3 +17,4 @@ eh/**/*.elc
 local/*
 !local/cursor-chg.el
 !local/org-pretty-table.el
+!local/space-doc.el

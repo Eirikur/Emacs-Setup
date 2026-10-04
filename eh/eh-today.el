@@ -5,6 +5,7 @@
 ;; the "Where I left off" note from the most recent earlier page.
 
 (require 'subr-x)
+(require 'eh-fancy)
 
 (defvar eh-today-directory (expand-file-name "~/org/days/")
   "Directory holding one Org file per day.")
@@ -90,28 +91,6 @@ For an empty section that is the end of the heading line."
       (message "Done: %s" text)))
   (save-buffer))
 
-;; The title text starts at the left; a leading space whose :align-to is
-;; `center' minus half the text's pixel width tracks the window size by itself.
-(defun eh-today--center-title ()
-  "Center the \"#+TITLE:\" text on its line, whatever the window width."
-  (save-excursion
-    (goto-char (point-min))
-    (when (re-search-forward "^#\\+TITLE: *" nil t)
-      (let* ((beg (match-end 0))
-             (end (line-end-position))
-             (win (get-buffer-window (current-buffer)))
-             (px (and win (> end beg)
-                      (car (window-text-pixel-size win beg end)))))
-        (mapc #'delete-overlay
-              (seq-filter (lambda (o) (overlay-get o 'eh-today-title))
-                          (overlays-in (point-min) (1+ end))))
-        (when px
-          (let ((o (make-overlay beg beg)))
-            (overlay-put o 'eh-today-title t)
-            (overlay-put o 'before-string
-                         (propertize " " 'display
-                                     `(space :align-to (- center (,(/ px 2))))))))))))
-
 (defun eh-today--template ()
   "Insert the skeleton for a new page, carrying over from the last one."
   (let* ((prev (eh-today--previous-file))
@@ -140,6 +119,17 @@ For an empty section that is the end of the heading line."
     (insert "* Parking lot\n\n")
     (insert "* Done\n")))
 
+;; Any way of opening a day page (here, recentf, find-file) gets its keys; the
+;; look comes from `eh-fancy-mode' (see `eh-fancy-directories').
+(defun eh-today--maybe-mode ()
+  "On `org-mode-hook': turn on `eh-today-mode' in files under the day directory."
+  (when (and buffer-file-name
+             (file-directory-p eh-today-directory)
+             (file-in-directory-p buffer-file-name eh-today-directory))
+    (eh-today-mode 1)))
+
+(add-hook 'org-mode-hook #'eh-today--maybe-mode)
+
 ;;;###autoload
 (defun eh-today ()
   "Open today's one-page plan, creating it from the template if needed."
@@ -150,29 +140,7 @@ For an empty section that is the end of the heading line."
     (when (zerop (buffer-size))
       (eh-today--template)
       (save-buffer))
-    (org-mode)
-    ;; org-modern hides every star; org-pretty-table (not org-modern) draws
-    ;; the tables.
-    (setq-local org-modern-hide-stars t
-                org-modern-star nil
-                org-modern-table nil
-                ;; A round bullet; the default en dash looks like a tilde in
-                ;; Lucida Casual.
-                org-modern-list '((?+ . "•") (?- . "•") (?* . "•"))
-                ;; Hide "#+TITLE:" entirely; other keywords lose only "#+".
-                org-modern-keyword '(("title" . "") (t . t)))
-    (when (require 'org-modern nil t)
-      (org-modern-mode 1))
-    (when (require 'org-pretty-table nil t)
-      (org-pretty-table-mode 1)
-      ;; jit-lock runs the mode's function before font-lock, which then wipes
-      ;; its glyphs; move it to the end of the list.
-      (remove-hook 'jit-lock-functions #'org-pretty-table-propertize-region t)
-      (add-hook 'jit-lock-functions #'org-pretty-table-propertize-region t t))
-    (when (require 'wps-face-mode nil t)
-      (wps-face-mode 1))
-    (eh-today-mode 1)
-    (eh-today--center-title)
+    (eh-fancy-refresh)
     (goto-char (point-min))
     (re-search-forward "^\\* Right now\n" nil t)))
 

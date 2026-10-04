@@ -3,7 +3,7 @@
 
 ;; use face-explorer tool
 
-(flyspell-mode)
+(require 'flyspell)
 (set-face-background 'flyspell-incorrect "gray")
 
 (require 'color)
@@ -17,6 +17,9 @@
 
 (defvar-local wps-heading-cookies nil
   "Face-remap cookies for the org heading faces.")
+(defvar-local wps-hide-modern-face-cookie nil "Face-remap cookie.")
+(defvar-local wps-hide-face-cookie nil "Face-remap cookie.")
+(defvar-local wps-default-face-cookie nil "Face-remap cookie.")
 
 (define-minor-mode wps-face-mode
   "Remap the default face."
@@ -48,18 +51,18 @@ color of the frame."
   (if wps-face-mode
       (setq wps-hide-modern-face-cookie
             (face-remap-add-relative 'org-modern-tag 'org-hide))
-    (face-remap-remove-relative wps-hide-modern-face-cookie))
+    (when wps-hide-modern-face-cookie (face-remap-remove-relative wps-hide-modern-face-cookie)))
 
   (if wps-face-mode
       (setq wps-hide-face-cookie
             (face-remap-add-relative 'org-tag-faces 'org-hide))
-    (face-remap-remove-relative wps-hide-face-cookie))
+    (when wps-hide-face-cookie (face-remap-remove-relative wps-hide-face-cookie)))
 
 
   (if wps-face-mode
       (setq wps-default-face-cookie
             (face-remap-add-relative 'default 'wps-default-face))
-    (face-remap-remove-relative wps-default-face-cookie))
+    (when wps-default-face-cookie (face-remap-remove-relative wps-default-face-cookie)))
 
   ;; Black text for headings and the other org faces that would otherwise
   ;; show in theme colours.  Remapped per buffer, undone when the mode is off.
@@ -84,6 +87,7 @@ color of the frame."
     (setq wps-heading-cookies nil))
 
 (setq-local truncate-lines nil)
+  (flyspell-mode (if wps-face-mode 1 -1))
 
 
 ;; (require 'org-pretty-table)
