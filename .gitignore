@@ -1,5 +1,5 @@
-# Whitelist: ignore everything, then list what is tracked.  A NEW file under
-# eh/ or local/ is ignored until it gets a "!" line here (or git add -f).
+# Whitelist: ignore everything, then list what is tracked.  eh/ is tracked in
+# full; a NEW file under local/ is ignored until it gets a "!" line here.
 *
 *.*
 
@@ -9,14 +9,10 @@
 !LICENSE
 !README.md
 !eh/
-eh/*
-!eh/eh-claude-follow.el
-!eh/eh-cursor.el
-!eh/eh-mode-line.el
-!eh/python-icon.png
-!eh/emacs-icon.png
-!eh/wps-face-mode.el
-!eh/eh-today.el
+# Track all of eh/ (personal modules); only skip editor and compile leftovers.
+!eh/**
+eh/**/*~
+eh/**/*.elc
 !local/
 local/*
 !local/cursor-chg.el
