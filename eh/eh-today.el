@@ -46,19 +46,69 @@
     (define-key map (kbd "C-c x") #'eh-today-done)
     map))
 
+(defconst eh-today-headings
+  '("Right now" "Where I left off" "Top 3" "Carried over" "Schedule" "Parking lot" "Done")
+  "Headings of a day page.  The carry-over and the C-c keys look them up by name.")
+
+(defcustom eh-today-protect-headings t
+  "Non-nil means the headings of a day page cannot be edited by accident.
+Toggle it in a buffer with `eh-today-toggle-heading-protection'."
+  :type 'boolean :group 'eh-today)
+(make-variable-buffer-local 'eh-today-protect-headings)
+
+(defun eh-today--protect ()
+  "Mark the day-page headings read-only, or clear the mark per the setting.
+Text typed after a heading (or RET at its end) is still allowed."
+  (save-excursion
+    (with-silent-modifications
+      (goto-char (point-min))
+      (let ((re (format "^\\* \\(?:%s\\)$" (mapconcat #'regexp-quote eh-today-headings "\\|"))))
+        (while (re-search-forward re nil t)
+          (if eh-today-protect-headings
+              (add-text-properties (line-beginning-position) (line-end-position)
+                                   '(read-only t rear-nonsticky (read-only)))
+            (remove-text-properties (line-beginning-position) (line-end-position)
+                                    '(read-only nil rear-nonsticky nil))))))))
+
+(defun eh-today-toggle-heading-protection ()
+  "Allow, or forbid again, editing the headings of this day page."
+  (interactive)
+  (setq eh-today-protect-headings (not eh-today-protect-headings))
+  (eh-today--protect)
+  (message "Day-page headings are %s" (if eh-today-protect-headings "protected" "editable")))
+
+(defun eh-today--command-error (data context caller)
+  "Say why a heading refuses an edit; anything else gets the usual report."
+  (if (eq (car-safe data) 'text-read-only)
+      (message "Heading is protected -- M-x eh-today-toggle-heading-protection to edit it")
+    (command-error-default-function data context caller)))
+
 (define-minor-mode eh-today-mode
-  "Keys for a one-page day plan."
+  "Keys for a one-page day plan, and protected headings."
   :lighter " Today"
-  :keymap eh-today-mode-map)
+  :keymap eh-today-mode-map
+  (if eh-today-mode
+      (progn (eh-today--protect)
+             (setq-local command-error-function #'eh-today--command-error))
+    (let ((eh-today-protect-headings nil)) (eh-today--protect))
+    (kill-local-variable 'command-error-function)))
 
 (defun eh-today--section-end (heading)
   "Return the position just after the last text of the \"* HEADING\" section.
-For an empty section that is the end of the heading line."
+For an empty section that is the end of the heading line.  A heading that is
+missing (renamed, deleted) is added at the end of the page."
   (save-excursion
     (goto-char (point-min))
     (unless (re-search-forward
              (format "^\\* %s$" (regexp-quote heading)) nil t)
-      (user-error "No \"%s\" section on this page" heading))
+      (let ((inhibit-read-only t))
+        (goto-char (point-max))
+        (unless (bolp) (insert "\n"))
+        (insert "\n* " heading "\n"))
+      (eh-today--protect)
+      (message "No \"%s\" heading on this page; added one at the end" heading)
+      (goto-char (point-min))
+      (re-search-forward (format "^\\* %s$" (regexp-quote heading))))
     (forward-line 1)
     (goto-char (if (re-search-forward "^\\* " nil t)
                    (match-beginning 0)
@@ -139,6 +189,7 @@ For an empty section that is the end of the heading line."
     (find-file file)
     (when (zerop (buffer-size))
       (eh-today--template)
+      (eh-today--protect)
       (save-buffer))
     (eh-fancy-refresh)
     (goto-char (point-min))

@@ -20,6 +20,12 @@
   "Font family for Org headings (Montaga has a Regular weight only)."
   :type 'string :group 'faces)
 
+;; Montaga's letters are small for their nominal size (like Lucida Casual, which
+;; eh-mode-line.el rescales by 1.2), so headings at 1.4x looked the same size as
+;; the body.  Scale the font itself; `wps-heading-heights' then reads as the
+;; visible size relative to the body text.
+(add-to-list 'face-font-rescale-alist '("Montaga" . 1.25))
+
 (defcustom wps-heading-heights '(1.4 1.25 1.15 1.1 1.05 1.0 1.0 1.0)
   "Height of Org heading levels 1 to 8, relative to the body text."
   :type '(repeat number) :group 'faces)
