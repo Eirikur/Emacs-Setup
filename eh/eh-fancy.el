@@ -1,7 +1,7 @@
 ;;; eh-fancy.el --- "Fancy eirikur mode" for Org files  -*- lexical-binding: t -*-
 
 ;; `eh-fancy-mode' turns on a stack of look-and-feel pieces in an Org buffer:
-;; org-modern, org-pretty-table, wps-face-mode, a centered title, and
+;; org-indent, org-modern, org-pretty-table, wps-face-mode, a centered title, and
 ;; (optionally) space-doc-mode.  It starts itself from `org-mode-hook' when
 ;; the file asks for it, so it works however the file was opened:
 ;;
@@ -18,17 +18,20 @@
 (require 'seq)
 (require 'subr-x)
 
+(declare-function org-indent-mode "org-indent")
 (declare-function org-modern-mode "org-modern")
 (declare-function org-pretty-table-mode "org-pretty-table")
 (declare-function org-pretty-table-propertize-region "org-pretty-table")
 (declare-function wps-face-mode "wps-face-mode")
 (declare-function space-doc-mode "space-doc")
 
+(defvar spacemacs-space-doc-modificators)  ; from space-doc; must be dynamic for the `let' below
+
 (defgroup eh-fancy nil "Fancy eirikur mode for Org files." :group 'org)
 
-(defcustom eh-fancy-components '(org-modern org-pretty-table wps-face-mode center-title)
+(defcustom eh-fancy-components '(org-indent org-modern org-pretty-table wps-face-mode center-title)
   "Pieces `eh-fancy-mode' turns on, in order.  Add `space-doc-mode' to use it."
-  :type '(repeat (choice (const org-modern) (const org-pretty-table)
+  :type '(repeat (choice (const org-indent) (const org-modern) (const org-pretty-table)
                          (const wps-face-mode) (const center-title)
                          (const space-doc-mode)))
   :group 'eh-fancy)
@@ -76,6 +79,9 @@
     (seq-filter (lambda (c) (member (symbol-name c) names)) eh-fancy-components)))
 
 ;;; The pieces.  Each takes ON: t to turn it on in this buffer, nil to undo.
+
+(defun eh-fancy--org-indent (on)
+  (org-indent-mode (if on 1 -1)))
 
 (defun eh-fancy--org-modern (on)
   (if on
@@ -150,6 +156,7 @@ With ON nil (as a component being turned off) remove the centering."
 
 (defun eh-fancy--component-fn (c)
   (pcase c
+    ('org-indent #'eh-fancy--org-indent)
     ('org-modern #'eh-fancy--org-modern)
     ('org-pretty-table #'eh-fancy--org-pretty-table)
     ('wps-face-mode #'eh-fancy--wps-face-mode)
