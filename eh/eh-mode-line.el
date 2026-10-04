@@ -431,5 +431,37 @@ SF and EF are the two colours; the edge is anti-aliased between them."
 ;; (add-hook 'emacs-startup-hook 'silently(spaceline-all-the-icons-theme))
 ;; (silently (spaceline-all-the-icons-theme))
 
+;;; Right-hand segments: align by pixels, not columns.
+;;; powerline sizes the right side with `string-width' (columns), which counts
+;;; each image separator as one character and ignores that Lucida Casual is
+;;; rescaled, so the right end (the clock) was clipped by the window edge.
+;;; Measure the rendered right side in pixels and use a pixel :align-to.
+;;; Set `eh-mode-line-pixel-fill' to nil to get powerline's own spacing back.
+(defvar eh-mode-line-pixel-fill t
+  "Non-nil means align the mode line's right side by measured pixel width.")
+
+(defun eh-mode-line--pixel-width (values)
+  "Replacement for `powerline-width': the rendered VALUES' width as (PIXELS).
+Without a graphical display, or with `eh-mode-line-pixel-fill' nil, columns."
+  (let ((text (format-mode-line (powerline-render values))))
+    ;; Under the segments' own faces, as in the real mode line.
+    (add-face-text-property 0 (length text) 'mode-line t text)
+    (if (and eh-mode-line-pixel-fill (display-graphic-p))
+        (list (string-pixel-width text))
+      (string-width text))))
+
+(defun eh-mode-line--pixel-fill (orig face reserve)
+  "Around advice for `powerline-fill': RESERVE is (PX) from the function above."
+  (if (consp reserve)
+      (propertize " "
+                  'display `((space :align-to (- (+ right right-fringe right-margin)
+                                                 ,reserve)))
+                  'face face)
+    (funcall orig face reserve)))
+
+(with-eval-after-load 'powerline
+  (advice-add 'powerline-width :override #'eh-mode-line--pixel-width)
+  (advice-add 'powerline-fill :around #'eh-mode-line--pixel-fill))
+
 (provide 'eh-mode-line)
 (message "End of eh-mode-line")

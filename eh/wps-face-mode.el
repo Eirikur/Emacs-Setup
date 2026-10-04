@@ -6,6 +6,7 @@
 (require 'flyspell)
 (set-face-background 'flyspell-incorrect "gray")
 
+(require 'cl-lib)
 (require 'color)
 (require 'ct)
 ;; (require 'palette)
@@ -14,6 +15,14 @@
 
 
 
+
+(defcustom wps-heading-family "Montaga"
+  "Font family for Org headings (Montaga has a Regular weight only)."
+  :type 'string :group 'faces)
+
+(defcustom wps-heading-heights '(1.4 1.25 1.15 1.1 1.05 1.0 1.0 1.0)
+  "Height of Org heading levels 1 to 8, relative to the body text."
+  :type '(repeat number) :group 'faces)
 
 (defvar-local wps-heading-cookies nil
   "Face-remap cookies for the org heading faces.")
@@ -73,10 +82,14 @@ color of the frame."
             (mapcar (lambda (spec)
                       (face-remap-add-relative (car spec) (cdr spec)))
                     (append
-                     (mapcar (lambda (n)
-                               (cons (intern (format "org-level-%d" n))
-                                     '(:foreground "black")))
-                             (number-sequence 1 8))
+                     (cl-loop for n from 1 to 8
+                              collect (cons (intern (format "org-level-%d" n))
+                                            (list :foreground "black"
+                                                  :family wps-heading-family
+                                                  ;; one weight only; no faux bold
+                                                  :weight 'normal
+                                                  :height (or (nth (1- n) wps-heading-heights)
+                                                              1.0))))
                      (mapcar (lambda (f) (cons f '(:foreground "black")))
                              '(org-document-title org-document-info
                                org-document-info-keyword org-meta-line
