@@ -8,6 +8,11 @@
 ;; filled the bar (the curves stopped short, the right-hand ones left a flat
 ;; "toe", and the glyph edge showed a thin coloured line).  Three knobs:
 ;;
+;;  0. LOWER/HIGHER BAR:  M-x eh-mode-line-set-scale (1.0 = original, try 0.8 or
+;;     0.7).  Scales text, icons and bar together and re-fits the dividers,
+;;     live, no restart.  To keep it, put (setq eh-mode-line-scale 0.8)
+;;     before (load-library "eh-mode-line") in init.el.
+;;
 ;;  1. Family:  `eh-mode-line-set-fonts' (Lucida Casual on mode-line and
 ;;     mode-line-inactive).  File-name font: the :family string in the
 ;;     `all-the-icons-buffer-id' segment (DaddyTimeMono Nerd Font).
@@ -111,7 +116,17 @@
 ;;; family is set on the faces.  Lucida Casual runs small next to Fira Code,
 ;;; so it is enlarged with `face-font-rescale-alist' rather than a face
 ;;; :height, which would also scale the icons and spaceline's own sizes.
-(add-to-list 'face-font-rescale-alist '("Lucida Casual" . 1.2))
+(defvar eh-mode-line-scale 1.0
+  "Overall size of the mode line: 1.0 is the original look, 0.8 is lower.
+Scales the Lucida Casual text and every icon together, and so the bar
+height.  Change it with `eh-mode-line-set-scale', which also re-fits the
+separators; setting the variable alone does nothing until then.")
+
+(defconst eh-mode-line--lucida-rescale 1.2
+  "Lucida Casual's rescale at `eh-mode-line-scale' 1.0.")
+
+(add-to-list 'face-font-rescale-alist
+             (cons "Lucida Casual" eh-mode-line--lucida-rescale))
 
 (defun eh-mode-line-set-fonts (&rest _)
   "Give the mode line its family.  Re-run after a theme is enabled."
@@ -358,6 +373,21 @@ SF and EF are the two colours; the edge is anti-aliased between them."
         (when (called-interactively-p 'interactive)
           (message "Mode line height: %d px" eh-mode-line--auto-height))))))
 
+(defun eh-mode-line-set-scale (scale)
+  "Make the mode line SCALE times its original size, and re-fit the separators.
+Works in a running Emacs.  1.0 is the original; try 0.8 or 0.7.  To keep a
+choice, set `eh-mode-line-scale' above before this file loads."
+  (interactive (list (read-number "Mode line scale (1.0 = original): "
+                                  eh-mode-line-scale)))
+  (setq eh-mode-line-scale scale
+        powerline-text-scale-factor (if (= scale 1.0) nil scale))
+  (setf (alist-get "Lucida Casual" face-font-rescale-alist nil nil #'equal)
+        (* scale eh-mode-line--lucida-rescale))
+  (clear-face-cache)
+  (eh-mode-line-calibrate)
+  (when (called-interactively-p 'interactive)
+    (message "Mode line scale %.2f: bar %d px" scale eh-mode-line--auto-height)))
+
 (add-hook 'window-setup-hook #'eh-mode-line-calibrate)
 (add-hook 'after-make-frame-functions #'eh-mode-line-calibrate)
 
@@ -459,9 +489,27 @@ Without a graphical display, or with `eh-mode-line-pixel-fill' nil, columns."
                   'face face)
     (funcall orig face reserve)))
 
+;;; Powerline's own arrows.  Between spaceline's segment groups it still draws
+;;; an `arrow' image, sized from the frame's character height times the image
+;;; scale (141 px here), and ignoring `eh-mode-line-bar-height'.  With the grey
+;;; band gone (init.el makes powerline-active2 the mode line's colour) the two
+;;; sides are the same colour, so the arrow is invisible but still holds the bar
+;;; at that height; nothing could make the bar lower.  Draw nothing for it.
+(defun eh-mode-line--skip-invisible-arrow (orig face1 face2 &rest args)
+  "Around advice for powerline arrows: no image when FACE1 and FACE2 match."
+  (if (and (display-graphic-p)
+           (equal (face-background face1 nil t) (face-background face2 nil t)))
+      ""
+    (apply orig face1 face2 args)))
+
 (with-eval-after-load 'powerline
+  (advice-add 'powerline-arrow-left :around #'eh-mode-line--skip-invisible-arrow)
+  (advice-add 'powerline-arrow-right :around #'eh-mode-line--skip-invisible-arrow)
   (advice-add 'powerline-width :override #'eh-mode-line--pixel-width)
   (advice-add 'powerline-fill :around #'eh-mode-line--pixel-fill))
+
+(unless (= eh-mode-line-scale 1.0)
+  (eh-mode-line-set-scale eh-mode-line-scale))
 
 (provide 'eh-mode-line)
 (message "End of eh-mode-line")
