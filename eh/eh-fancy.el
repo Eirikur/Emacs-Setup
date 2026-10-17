@@ -83,21 +83,38 @@
 (defun eh-fancy--org-indent (on)
   (org-indent-mode (if on 1 -1)))
 
+(defconst eh-fancy--star-keywords
+  '(("^\\*+ " (0 '(face nil invisible eh-fancy-stars) prepend)))
+  "Make every heading star (and the space after it) invisible.")
+
 (defun eh-fancy--org-modern (on)
   (if on
-      (when (require 'org-modern nil t)
-        ;; org-modern hides every star; org-pretty-table (not org-modern)
-        ;; draws the tables.
-        (setq-local org-modern-hide-stars t
-                    org-modern-star nil
-                    org-modern-table nil
-                    ;; A round bullet; the default en dash looks like a tilde
-                    ;; in Lucida Casual.
-                    org-modern-list '((?+ . "•") (?- . "•") (?* . "•"))
-                    ;; Hide "#+TITLE:" entirely; other keywords lose only "#+".
-                    org-modern-keyword '(("title" . "") (t . t)))
-        (org-modern-mode 1))
+      (progn
+        (when (require 'org-modern nil t)
+          ;; Stars are hidden below; org-pretty-table (not org-modern) draws
+          ;; the tables.
+          (setq-local org-modern-hide-stars t
+                      org-modern-star nil
+                      org-modern-table nil
+                      ;; A round bullet; the default en dash looks like a tilde
+                      ;; in Lucida Casual.
+                      org-modern-list '((?+ . "•") (?- . "•") (?* . "•"))
+                      ;; Hide "#+TITLE:" entirely; other keywords lose only "#+".
+                      org-modern-keyword '(("title" . "") (t . t)))
+          (org-modern-mode 1))
+        ;; org-modern stops hiding stars when org-indent is on, and org-indent
+        ;; leaves the last star showing, so hide the whole run of stars here.
+        (font-lock-add-keywords nil eh-fancy--star-keywords 'append)
+        (add-to-invisibility-spec 'eh-fancy-stars)
+        (unless (memq 'invisible font-lock-extra-managed-props)
+          (setq-local font-lock-extra-managed-props
+                      (cons 'invisible font-lock-extra-managed-props)))
+        (font-lock-flush))
+    (font-lock-remove-keywords nil eh-fancy--star-keywords)
+    (remove-from-invisibility-spec 'eh-fancy-stars)
+    (font-lock-flush)
     (when (bound-and-true-p org-modern-mode) (org-modern-mode -1))))
+
 
 (defun eh-fancy--org-pretty-table (on)
   (if on
@@ -108,6 +125,8 @@
         (remove-hook 'jit-lock-functions #'org-pretty-table-propertize-region t)
         (add-hook 'jit-lock-functions #'org-pretty-table-propertize-region t t))
     (when (bound-and-true-p org-pretty-table-mode) (org-pretty-table-mode -1))))
+
+
 
 (defun eh-fancy--wps-face-mode (on)
   (if on

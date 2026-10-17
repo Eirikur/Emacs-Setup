@@ -50,9 +50,11 @@
   '("Right now" "Where I left off" "Top 3" "Carried over" "Schedule" "Parking lot" "Done")
   "Headings of a day page.  The carry-over and the C-c keys look them up by name.")
 
-(defcustom eh-today-protect-headings t
+(defcustom eh-today-protect-headings nil
   "Non-nil means the headings of a day page cannot be edited by accident.
-Toggle it in a buffer with `eh-today-toggle-heading-protection'."
+Off by default: headings can be renamed or deleted like any text, and a
+missing one is added back when C-c p or C-c x needs it.  Toggle it in a
+buffer with `eh-today-toggle-heading-protection'."
   :type 'boolean :group 'eh-today)
 (make-variable-buffer-local 'eh-today-protect-headings)
 
@@ -84,7 +86,7 @@ Text typed after a heading (or RET at its end) is still allowed."
     (command-error-default-function data context caller)))
 
 (define-minor-mode eh-today-mode
-  "Keys for a one-page day plan, and protected headings."
+  "Keys for a one-page day plan (and, optionally, protected headings)."
   :lighter " Today"
   :keymap eh-today-mode-map
   (if eh-today-mode
