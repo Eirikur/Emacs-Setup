@@ -184,7 +184,7 @@ With ON nil (as a component being turned off) remove the centering."
 
 ;;; The mode
 
-(defun eh-fancy-refresh ()
+(defun eh-fancy-refresh   ()
   "Redo the pieces that depend on the buffer's text or window (the title)."
   (interactive)
   (when (memq 'center-title eh-fancy--active)
