@@ -252,7 +252,7 @@ then written normally."
   "Execute a shell script to backup the just-saved file."
   (interactive)
   (message "%s" (shell-command-to-string (concat "~/scripts/emacs-push.sh "
-						 buffer-file-name)))
+						 (shell-quote-argument buffer-file-name))))
 
 )
 (add-hook 'after-save-hook 'eh-backup-file)
